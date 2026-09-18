@@ -27,9 +27,9 @@ RUN useradd -m -u 1000 appuser && \
     chown -R appuser:appuser /app
 
 COPY --chown=appuser:appuser app/ app/
-COPY --chown=appuser:appuser docs/ docs/
 COPY --chown=appuser:appuser scripts/ scripts/
 COPY --chown=appuser:appuser frontend/ frontend/
+COPY --chown=appuser:appuser tests/ tests/
 
 USER appuser
 

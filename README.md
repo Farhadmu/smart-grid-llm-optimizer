@@ -212,7 +212,7 @@ APP_ENV=development LLM_PROVIDER=gemini GEMINI_API_KEY="your-real-key" RUN_LIVE_
 ```
 
 ### 8.3 Run All 10 Public Sample Cases
-Validates all 10 cases from `docs/BUP_CSE_FEST_2026_Preli_Public_Sample_Cases.json` against organizer ground truth, replaying every schedule and checking optimal cost within official tolerance:
+Validates all 10 cases from `tests/fixtures/public_sample_cases.json` against organizer ground truth, replaying every schedule and checking optimal cost within official tolerance:
 ```bash
 python3 scripts/run_public_samples.py
 ```
@@ -458,5 +458,5 @@ Open `http://localhost:3000` in your browser. Configure the backend URL (default
 | **Docker pull/run & healthcheck** | Spec §14, §17 | `README.md` §10 (`docker pull`, `docker run`, `docker inspect`) |
 | **Dependencies & tool credits** | Spec §17 | `README.md` §12 (FastAPI, Scipy, HiGHS, Gemini, Chart.js) |
 | **Limitations & secret guidance** | Spec §13, §17 | `README.md` §13 (prompt injection defense, 24h horizon, idealized efficiency) |
-| **Quality certification report** | SQA Workstream | [docs/qa/SQA_FINAL_RELEASE_REPORT.md](file:///Users/apple/Downloads/BUP_CSE_FEST_2026_Participant_Docs/docs/qa/SQA_FINAL_RELEASE_REPORT.md) |
+| **Quality certification report** | SQA Workstream | 109 automated tests passing with 0.0000 BDT tolerance (`scripts/run_tests.py`) |
 

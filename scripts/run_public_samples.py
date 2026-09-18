@@ -74,7 +74,9 @@ def check_interpretation_match(actual_list, expected_list) -> Tuple[bool, str]:
 
 
 async def run_all_samples():
-    sample_file = ROOT_DIR / "docs" / "BUP_CSE_FEST_2026_Preli_Public_Sample_Cases.json"
+    sample_file = ROOT_DIR / "tests" / "fixtures" / "public_sample_cases.json"
+    if not sample_file.exists():
+        sample_file = ROOT_DIR / "docs" / "BUP_CSE_FEST_2026_Preli_Public_Sample_Cases.json"
     if not sample_file.exists():
         print(f"Error: Sample cases file not found at {sample_file}")
         sys.exit(1)
