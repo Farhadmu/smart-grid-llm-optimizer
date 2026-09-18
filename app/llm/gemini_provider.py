@@ -101,7 +101,12 @@ class GeminiInterpreter(LLMInterpreter):
         except urllib.error.HTTPError as e:
             # Handle rate-limit (429) or transient server errors gracefully without altering model strategy
             if e.code == 429:
-                raise LLMInterpretationError("Gemini API rate limit exceeded (HTTP 429): Resource exhausted") from None
+                raise LLMInterpretationError(
+                    "Gemini API rate limit exceeded (HTTP 429): Resource exhausted. "
+                    "Google free-tier RPM or daily quota reached for gemini-2.5-flash. "
+                    "Please wait 60s, switch to Offline Deterministic Provider (Settings -> Fake), "
+                    "or enter another Gemini/OpenAI key."
+                ) from None
             if e.code == 503:
                 raise LLMInterpretationError("Gemini API service temporarily unavailable (HTTP 503)") from None
             raise LLMInterpretationError(f"Gemini API HTTP Error {e.code}: {e.reason}") from None

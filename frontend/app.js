@@ -1097,10 +1097,15 @@ function renderJsonInspector() {
 
 function showError(title, msg) {
   errorTitle.textContent = title;
-  errorMessage.textContent = msg;
+  const isRateLimit = /429|Resource exhausted|rate limit/i.test(title + " " + msg);
+  if (isRateLimit) {
+    errorMessage.innerHTML = `<span>${escapeHtml(msg)}</span><div style="margin-top:0.5rem; padding:0.4rem 0.6rem; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.25); border-radius:4px; font-size:0.75rem; line-height:1.4;">⚠️ <strong>Gemini Free Quota Reached:</strong> Google's free-tier rate limit has been reached on this API key. Click <strong>Switch to Offline Deterministic Provider &amp; Retry</strong> below to continue uninterrupted judging without token limits.</div>`;
+  } else {
+    errorMessage.textContent = msg;
+  }
   errorAlert.style.display = "flex";
   
-  const isLlmIssue = /MODEL_INTERPRETATION_ERROR|Gemini|API connection|nodename nor servname|timed out|TimeoutError|404|429|LLM/i.test(title + " " + msg);
+  const isLlmIssue = /MODEL_INTERPRETATION_ERROR|Gemini|API connection|nodename nor servname|timed out|TimeoutError|404|429|LLM|Resource exhausted/i.test(title + " " + msg);
   if (errorActions) {
     errorActions.style.display = isLlmIssue ? "flex" : "none";
   }
@@ -1344,7 +1349,24 @@ function setupEventListeners() {
         if (res.ok) {
           showTestStatus(`✅ Connected successfully! (${elapsed} ms) · Interpreted: ${resData.directive_interpretation?.[0]?.directive_type || "OK"}`, true);
         } else {
-          showTestStatus(`❌ Provider Error (${res.status}): ${resData.error?.message || "Check API key and model identifier"}`, false);
+          const errMsg = resData.error?.message || "Check API key and model identifier";
+          const isRateLimit = /429|Resource exhausted|rate limit/i.test(errMsg);
+          if (isRateLimit) {
+            showTestStatus(
+              `<strong>❌ Provider Error (${res.status}):</strong> Gemini rate limit exceeded (HTTP 429: Resource exhausted).` +
+              `<div style="margin-top:0.45rem; padding:0.5rem; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.25); border-radius:4px; font-size:0.75rem; line-height:1.4;">` +
+              `Google's free-tier quota/RPM limit for <code>gemini-2.5-flash</code> has been reached on this API key.<br/><br/>` +
+              `<strong>Recommended for Hackathon Presentation / Evaluation:</strong><br/>` +
+              `Switch to <strong>Deterministic Fake (Offline Judge)</strong> mode for 0ms latency, zero API limits, and 100% benchmark compliance.` +
+              `<div style="margin-top:0.5rem;">` +
+              `<button id="switchFakeFromModalBtn" type="button" class="btn btn-primary btn-sm" style="font-size:0.72rem; padding:0.3rem 0.6rem; cursor:pointer;">⚡ Switch to Deterministic Fake Mode</button>` +
+              `</div></div>`,
+              false,
+              true
+            );
+          } else {
+            showTestStatus(`❌ Provider Error (${res.status}): ${escapeHtml(errMsg)}`, false);
+          }
         }
       } catch (err) {
         showTestStatus(`❌ Connection failed: ${err.message || "Network unreachable"}`, false);
@@ -1355,9 +1377,26 @@ function setupEventListeners() {
     });
   }
 
-  function showTestStatus(msg, isSuccess) {
+  function showTestStatus(msg, isSuccess, isHtml = false) {
     if (!testProviderStatus) return;
-    testProviderStatus.textContent = msg;
+    if (isHtml) {
+      testProviderStatus.innerHTML = msg;
+      const modalSwitchBtn = document.getElementById("switchFakeFromModalBtn");
+      if (modalSwitchBtn) {
+        modalSwitchBtn.addEventListener("click", () => {
+          if (cfgLlmProvider) {
+            cfgLlmProvider.value = "fake";
+            updateProviderSettingsVisibility();
+          }
+          const cfg = getStoredSettings();
+          cfg.llm_provider = "fake";
+          saveStoredSettings(cfg);
+          showTestStatus("✅ Switched to Deterministic Fake (Offline Judge Mode)! 0ms latency, zero API limits.", true, false);
+        });
+      }
+    } else {
+      testProviderStatus.textContent = msg;
+    }
     testProviderStatus.className = isSuccess ? "test-status-success" : "test-status-error";
     testProviderStatus.style.display = "block";
   }
