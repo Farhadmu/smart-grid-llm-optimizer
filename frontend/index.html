@@ -100,6 +100,11 @@
     <div class="header-controls">
       <input type="hidden" id="apiBaseInput" value="http://127.0.0.1:8000" />
 
+      <button id="tourToggleBtn" class="btn btn-secondary btn-sm" aria-label="Open quick platform tour" title="Quick Tour: How it works">
+        <span aria-hidden="true">💡</span>
+        <span class="desktop-only" style="font-size:0.75rem;">Tour</span>
+      </button>
+
       <button id="settingsToggleBtn" class="btn btn-secondary btn-sm" aria-label="Open settings modal" title="Configure LLM & Optimizer">
         <span aria-hidden="true">⚙️</span>
         <span class="desktop-only" style="font-size:0.75rem;">Settings</span>
@@ -119,9 +124,9 @@
         </button>
       </div>
 
-      <div class="status-indicator" role="status" aria-live="polite">
+      <div class="status-indicator" role="status" aria-live="polite" title="Backend Health: Checking...">
         <span id="statusDot" class="status-dot checking" aria-hidden="true"></span>
-        <span id="statusText">Checking...</span>
+        <span id="statusText" class="desktop-only">Checking...</span>
       </div>
     </div>
   </header>
@@ -265,16 +270,25 @@
 
       <!-- High-Level KPIs -->
       <div class="kpi-row" role="region" aria-label="Cost and Energy Totals">
-        <div class="kpi-tile">
-          <span class="kpi-meta">Optimized Grid Cost</span>
+        <div class="kpi-tile" title="Total 24-hour electricity bill in Bangladeshi Taka (BDT ৳) calculated from hourly tariffs">
+          <div class="kpi-meta-row">
+            <span class="kpi-meta">Optimized Grid Cost</span>
+            <span class="explainer-chip" title="24h total electricity cost">৳ Bill</span>
+          </div>
           <div class="kpi-figure"><span id="kpiCost">—</span> <span class="kpi-currency">BDT</span></div>
         </div>
-        <div class="kpi-tile">
-          <span class="kpi-meta">Total Grid Energy</span>
+        <div class="kpi-tile" title="Total electricity drawn from the national power grid across 24 hours">
+          <div class="kpi-meta-row">
+            <span class="kpi-meta">Total Grid Energy</span>
+            <span class="explainer-chip" title="Total national grid import">Utility</span>
+          </div>
           <div class="kpi-figure"><span id="kpiGrid">—</span> <span class="kpi-currency">kWh</span></div>
         </div>
-        <div class="kpi-tile">
-          <span class="kpi-meta">Peak Feeder Demand</span>
+        <div class="kpi-tile" title="Highest power draw from grid in any single hour (lower is better to avoid transformer overload)">
+          <div class="kpi-meta-row">
+            <span class="kpi-meta">Peak Feeder Demand</span>
+            <span class="explainer-chip" title="Peak load shaved to prevent overload">Peak</span>
+          </div>
           <div class="kpi-figure"><span id="kpiPeak">—</span> <span class="kpi-currency">kW</span></div>
         </div>
       </div>
@@ -327,7 +341,12 @@
 
       <!-- Hourly Schedule Plan Table -->
       <div class="form-group">
-        <span class="form-label">Hourly Dispatch Schedule</span>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.35rem; flex-wrap:wrap; gap:0.25rem;">
+          <span class="form-label" style="margin:0;">Hourly Dispatch Schedule</span>
+          <span class="explainer-badge" title="Standard Bangladesh Time-of-Use peak tariff hours where battery discharges to reduce expensive grid import">
+            🇧🇩 Peak Tariff Window: 17:00 – 23:00 (5 PM – 11 PM)
+          </span>
+        </div>
         <div class="hours-table-wrap" style="max-height: 200px;" tabindex="0" role="region" aria-label="Hourly schedule results table">
           <table class="data-table">
             <thead>
@@ -471,6 +490,101 @@
         <div style="display:flex; gap:0.5rem; margin-left:auto;">
           <button id="resetSettingsBtn" class="btn btn-secondary btn-sm">Reset</button>
           <button id="saveSettingsBtn" class="btn btn-primary btn-sm">Save & Apply</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 1-Time Visual Onboarding Tour Modal -->
+  <div id="onboardingModal" class="modal-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="tourTitle">
+    <div class="modal-card tour-modal-card">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span style="font-size:1.25rem;">⚡</span>
+          <h2 id="tourTitle" class="modal-title">Welcome to GridWise</h2>
+        </div>
+        <button id="closeTourBtn" class="btn-icon" aria-label="Close tour">✕</button>
+      </div>
+
+      <div class="tour-body">
+        <!-- Step 1 -->
+        <div class="tour-step active" data-step="1">
+          <div class="tour-visual-badge">
+            <span class="tour-emoji">🏛️ ⚡ 🔋</span>
+          </div>
+          <h3 class="tour-step-title">Smart Campus Microgrid Management</h3>
+          <p class="tour-step-desc">
+            GridWise is an AI-assisted energy scheduling platform engineered for Bangladeshi institutions (BUP CSE Fest 2026).
+            It coordinates <strong>rooftop solar</strong>, <strong>national grid power</strong>, and <strong>battery storage</strong> to minimize electricity bills in <strong>BDT (৳)</strong> while honoring critical operational directives.
+          </p>
+          <div class="tour-feature-points">
+            <div class="tour-point"><span>🇧🇩</span> <div><strong>Tailored for Bangladesh:</strong> Handles Time-of-Use peak tariffs (5 PM – 11 PM) where grid rates jump.</div></div>
+            <div class="tour-point"><span>💰</span> <div><strong>Cost Minimization:</strong> Automatically stores cheap solar power to offset peak grid draw.</div></div>
+            <div class="tour-point"><span>🛡️</span> <div><strong>Zero Blackouts:</strong> Always meets 100% of campus demand with zero energy shortfall.</div></div>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="tour-step" data-step="2" style="display:none;">
+          <div class="tour-visual-badge">
+            <span class="tour-emoji">📋 ☀️ 📝</span>
+          </div>
+          <h3 class="tour-step-title">Step 1: Set Up 24-Hour Scenario</h3>
+          <p class="tour-step-desc">
+            Choose an official reference benchmark or customize your facility's profile:
+          </p>
+          <div class="tour-feature-points">
+            <div class="tour-point"><span>🎯</span> <div><strong>10 Official Public Cases:</strong> Instant 1-click loading from the benchmark card.</div></div>
+            <div class="tour-point"><span>💬</span> <div><strong>Human Operator Notes:</strong> Enter natural language instructions like <em>"Battery maintenance from 2 PM to 4 PM"</em>.</div></div>
+            <div class="tour-point"><span>⚡</span> <div><strong>Battery Parameters:</strong> Set capacity, minimum reserve safety floor, and hourly tariffs.</div></div>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="tour-step" data-step="3" style="display:none;">
+          <div class="tour-visual-badge">
+            <span class="tour-emoji">🤖 🔒 📐</span>
+          </div>
+          <h3 class="tour-step-title">Step 2: AI Directives + Mathematical Rigor</h3>
+          <p class="tour-step-desc">
+            Our dual-stage architecture guarantees <strong>zero hallucination</strong>:
+          </p>
+          <div class="tour-feature-points">
+            <div class="tour-point"><span>🧠</span> <div><strong>Google Gemini AI:</strong> Translates natural language notes into structured machine directives.</div></div>
+            <div class="tour-point"><span>🛡️</span> <div><strong>Deterministic Guardrails:</strong> Verifies every range, factor, and hour bound before optimization.</div></div>
+            <div class="tour-point"><span>📐</span> <div><strong>HiGHS Linear Program:</strong> Computes the mathematically provable lowest-cost schedule with zero energy waste.</div></div>
+          </div>
+        </div>
+
+        <!-- Step 4 -->
+        <div class="tour-step" data-step="4" style="display:none;">
+          <div class="tour-visual-badge">
+            <span class="tour-emoji">📊 ৳ ✅</span>
+          </div>
+          <h3 class="tour-step-title">Step 3: Review Savings & Certified Schedule</h3>
+          <p class="tour-step-desc">
+            Gain immediate executive insight into financial savings and physical safety:
+          </p>
+          <div class="tour-feature-points">
+            <div class="tour-point"><span>💵</span> <div><strong>Financial Impact:</strong> Total 24-hour electricity bill in Bangladeshi Taka (BDT ৳).</div></div>
+            <div class="tour-point"><span>📈</span> <div><strong>Interactive Visuals:</strong> Solar, battery flow, and grid draw synchronized hour-by-hour.</div></div>
+            <div class="tour-point"><span>✅</span> <div><strong>Certified Replay Engine:</strong> Independent chronological check guaranteeing 100% compliance.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tour Footer Navigation -->
+      <div class="tour-footer">
+        <div class="tour-dots" aria-hidden="true">
+          <span class="tour-dot active" data-step="1"></span>
+          <span class="tour-dot" data-step="2"></span>
+          <span class="tour-dot" data-step="3"></span>
+          <span class="tour-dot" data-step="4"></span>
+        </div>
+        <div class="tour-step-counter"><span id="tourStepNumber">1</span> of 4</div>
+        <div class="tour-actions">
+          <button id="tourPrevBtn" class="btn btn-secondary btn-sm" style="display:none;">Back</button>
+          <button id="tourNextBtn" class="btn btn-primary btn-sm">Next →</button>
         </div>
       </div>
     </div>

@@ -329,10 +329,15 @@ Response:
 
 ---
 
-## 10. Docker Build & Deployment
+## 10. Docker Build, Pull & Deployment
 
-### 10.1 Build Container Image
-Uses pinned dependencies from `requirements.lock` and creates a non-root `appuser`:
+### 10.1 Pull or Build Container Image
+Pull the prebuilt fallback container image:
+```bash
+docker pull ghcr.io/farhadmu/gridwise-service:latest
+```
+
+Or build locally from source using pinned dependencies from `requirements.lock` and a non-root `appuser`:
 ```bash
 docker build -t gridwise-service:latest .
 ```
@@ -399,6 +404,7 @@ We gratefully acknowledge the open-source libraries and algorithms powering Grid
 - **SciPy & NumPy** (`scipy.optimize.linprog`) powered by the **HiGHS** linear programming solver
 - **Uvicorn** for high-performance ASGI server delivery
 - **Google Gemini & OpenAI APIs** for generative natural-language directive parsing
+- **Chart.js** (v4.4.1) for high-performance canvas-based multi-axis microgrid data visualization
 
 ---
 
@@ -418,7 +424,7 @@ We gratefully acknowledge the open-source libraries and algorithms powering Grid
 
 ---
 
-## 13. Demonstration Dashboard (Frontend)
+## 14. Demonstration Dashboard (Frontend)
 
 An optional, browser-based demonstration UI is provided under `frontend/` for video presentations, team rehearsal, and visual scenario inspection.
 
@@ -433,4 +439,24 @@ cd frontend
 python3 -m http.server 3000
 ```
 Open `http://localhost:3000` in your browser. Configure the backend URL (defaults to `http://127.0.0.1:8000`), load any of the 10 official public sample cases, and trigger optimization to inspect the dual-axis charts, directive cards, and raw JSON exchange.
+
+---
+
+## 15. Organizer Checklist & Deliverables Compliance
+
+| Organizer Checklist Item | Specification Clause | Repository Location / Verification |
+|---|---|---|
+| **Clean clone/pull & setup** | Spec §17 | `README.md` §7 (`git clone`, `pip install -r requirements.txt`) |
+| **Required environment variables** | Spec §16 | `README.md` §7.3 & `.env.example` (zero hardcoded secrets) |
+| **Model/provider identifier** | Spec §5.1, §16 | `README.md` §7.3 (`gemini-2.5-flash`, `gpt-4o-mini`, `fake`) |
+| **Explicit LLM role in note interpretation** | Spec §3.1, §5.1 | `README.md` §3.1 (translates prose to 6 strict directives) |
+| **Guardrail & optimizer explanation** | Spec §5.3, §7.1 | `README.md` §3.3 & §5 (HiGHS LP, signed battery flow, replay) |
+| **Exact start command** | Spec §14, §17 | `README.md` §7.4 (`uvicorn app.main:app --host 0.0.0.0 --port 8000`) |
+| **`GET /health` example** | Spec §4.2 | `README.md` §9.1 (`curl -s http://localhost:8000/health`) |
+| **`POST /optimize-energy` example** | Spec §4.3 | `README.md` §9.2 (complete 24-hour curl payload and JSON output) |
+| **Public sample test command** | Spec §17 | `README.md` §8.3 (`python3 scripts/run_public_samples.py`) |
+| **Docker pull/run & healthcheck** | Spec §14, §17 | `README.md` §10 (`docker pull`, `docker run`, `docker inspect`) |
+| **Dependencies & tool credits** | Spec §17 | `README.md` §12 (FastAPI, Scipy, HiGHS, Gemini, Chart.js) |
+| **Limitations & secret guidance** | Spec §13, §17 | `README.md` §13 (prompt injection defense, 24h horizon, idealized efficiency) |
+| **Quality certification report** | SQA Workstream | [docs/qa/SQA_FINAL_RELEASE_REPORT.md](file:///Users/apple/Downloads/BUP_CSE_FEST_2026_Participant_Docs/docs/qa/SQA_FINAL_RELEASE_REPORT.md) |
 

@@ -63,9 +63,11 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 ## 4. Verification & Testing
 
 To verify the dashboard offline against simulated backend responses or live against the local backend:
-1. Open the dashboard in a browser.
-2. Click **Check Health** to verify backend connectivity (status indicator will turn green).
-3. Select **SAMPLE-01** from the sample selector dropdown and click **Load**.
-4. Click **Run Energy Optimization**.
-5. Observe the KPIs (`38,365.00 BDT`), charts, directive cards, and hourly plan matching the official public test suite.
+1. Open the dashboard in a browser at `http://localhost:3000` (or `http://localhost:8000`).
+2. Click **Instant 1-Click Judge Sign In** on the operator portal.
+3. Review the **1-Time Visual Onboarding Tour** introducing the 3-step optimization pipeline.
+4. Verify the status indicator automatically confirms backend readiness (`Live`).
+5. Select **SAMPLE-01** from the reference scenario dropdown and click **Load Case** (or select another case).
+6. Click **Run Energy Optimization**.
+7. Observe the KPIs (`38,365.00 BDT`), energy flow charts, Gemini directive cards, and 24-hour certified dispatch schedule matching the official public test suite.
 

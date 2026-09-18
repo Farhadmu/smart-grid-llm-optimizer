@@ -124,6 +124,7 @@ function applyAuthState() {
     if (mainContent) mainContent.style.display = "";
     if (userProfileBadge) userProfileBadge.style.display = "flex";
     if (userRoleDisplay) userRoleDisplay.textContent = user.roleShort || "Judge";
+    checkFirstTimeTour();
   } else {
     if (loginView) loginView.style.display = "flex";
     if (appHeader) appHeader.style.display = "none";
@@ -242,6 +243,94 @@ function closeSettingsModal() {
   if (settingsModal) settingsModal.style.display = "none";
 }
 
+// Onboarding Tour Modal References & State
+const onboardingModal = document.getElementById("onboardingModal");
+const tourToggleBtn = document.getElementById("tourToggleBtn");
+const closeTourBtn = document.getElementById("closeTourBtn");
+const tourPrevBtn = document.getElementById("tourPrevBtn");
+const tourNextBtn = document.getElementById("tourNextBtn");
+const tourStepNumber = document.getElementById("tourStepNumber");
+
+let currentTourStep = 1;
+
+function showTourStep(step) {
+  currentTourStep = Math.max(1, Math.min(4, step));
+  const tourSteps = document.querySelectorAll(".tour-step");
+  const tourDots = document.querySelectorAll(".tour-dot");
+
+  if (tourSteps) {
+    tourSteps.forEach((el, idx) => {
+      const stepIdx = idx + 1;
+      el.style.display = stepIdx === currentTourStep ? "block" : "none";
+      if (stepIdx === currentTourStep) {
+        el.classList.add("active");
+      } else {
+        el.classList.remove("active");
+      }
+    });
+  }
+
+  if (tourDots) {
+    tourDots.forEach((dot, idx) => {
+      const stepIdx = idx + 1;
+      if (stepIdx === currentTourStep) {
+        dot.classList.add("active");
+      } else {
+        dot.classList.remove("active");
+      }
+    });
+  }
+
+  if (tourStepNumber) {
+    tourStepNumber.textContent = currentTourStep;
+  }
+  if (tourPrevBtn) {
+    tourPrevBtn.style.display = currentTourStep > 1 ? "inline-flex" : "none";
+  }
+  if (tourNextBtn) {
+    tourNextBtn.textContent = currentTourStep === 4 ? "Got It! Start Exploring 🚀" : "Next →";
+  }
+}
+
+function openTour() {
+  showTourStep(1);
+  if (onboardingModal) onboardingModal.style.display = "flex";
+}
+
+function closeTour(markSeen = true) {
+  if (onboardingModal) onboardingModal.style.display = "none";
+  if (markSeen) {
+    try {
+      localStorage.setItem("gridwise_tour_seen", "true");
+    } catch (e) {}
+  }
+}
+
+function nextTourStep() {
+  if (currentTourStep < 4) {
+    showTourStep(currentTourStep + 1);
+  } else {
+    closeTour(true);
+  }
+}
+
+function prevTourStep() {
+  if (currentTourStep > 1) {
+    showTourStep(currentTourStep - 1);
+  }
+}
+
+function checkFirstTimeTour() {
+  try {
+    const seen = localStorage.getItem("gridwise_tour_seen");
+    if (!seen) {
+      setTimeout(() => {
+        openTour();
+      }, 400);
+    }
+  } catch (e) {}
+}
+
 function switchMobileView(viewName) {
   if (viewName === "scenarioView") {
     if (tabNavScenario) tabNavScenario.classList.add("active");
@@ -349,21 +438,26 @@ function getApiBase() {
 // Health Check
 async function checkHealth() {
   const base = getApiBase();
+  const statusIndicator = document.querySelector(".status-indicator");
   statusDot.className = "status-dot checking";
   statusText.textContent = "Checking...";
+  if (statusIndicator) statusIndicator.title = "Backend Service: Checking connectivity...";
 
   try {
     const res = await fetch(`${base}/health`, { method: "GET" });
     if (res.ok) {
       statusDot.className = "status-dot online";
       statusText.textContent = "Online (200 OK)";
+      if (statusIndicator) statusIndicator.title = "Backend Service: Online (200 OK)";
     } else {
       statusDot.className = "status-dot offline";
       statusText.textContent = `Status ${res.status}`;
+      if (statusIndicator) statusIndicator.title = `Backend Service: Error ${res.status}`;
     }
   } catch (err) {
     statusDot.className = "status-dot offline";
-    statusText.textContent = "Offline / Connection Refused";
+    statusText.textContent = "Offline";
+    if (statusIndicator) statusIndicator.title = "Backend Service: Offline / Connection Refused";
   }
 }
 
@@ -819,6 +913,23 @@ function setupEventListeners() {
       if (e.target === settingsModal) closeSettingsModal();
     });
   }
+
+  // Onboarding Tour Modal Listeners
+  if (tourToggleBtn) tourToggleBtn.addEventListener("click", openTour);
+  if (closeTourBtn) closeTourBtn.addEventListener("click", () => closeTour(true));
+  if (tourNextBtn) tourNextBtn.addEventListener("click", nextTourStep);
+  if (tourPrevBtn) tourPrevBtn.addEventListener("click", prevTourStep);
+  if (onboardingModal) {
+    onboardingModal.addEventListener("click", (e) => {
+      if (e.target === onboardingModal) closeTour(true);
+    });
+  }
+  document.querySelectorAll(".tour-dot").forEach(dot => {
+    dot.addEventListener("click", () => {
+      const step = parseInt(dot.getAttribute("data-step"));
+      if (!isNaN(step)) showTourStep(step);
+    });
+  });
 
   if (toggleKeyVisibilityBtn && cfgGeminiKey) {
     toggleKeyVisibilityBtn.addEventListener("click", () => {
