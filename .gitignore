@@ -1,0 +1,28 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Virtual environments
+.venv/
+env/
+venv/
+ENV/
+
+# Environment variables & secrets
+.env
+.env.local
+
+# macOS metadata
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Logs
+*.log
