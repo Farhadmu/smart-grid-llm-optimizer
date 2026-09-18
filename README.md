@@ -177,7 +177,7 @@ cp .env.example .env
 | `PORT` | `8000` | Port to expose (dynamically used by Docker health check) |
 | `LLM_PROVIDER` | `gemini` | Provider: `gemini`, `openai`, or `fake` |
 | `GEMINI_API_KEY` | `""` | Google Gemini API key (passed via `x-goog-api-key` header) |
-| `GEMINI_MODEL` | `gemini-2.5-flash` | Gemini model name (with automated fallback across 2.5, 2.0, 1.5) |
+| `GEMINI_MODEL` | `gemini-2.5-flash` | Single stable Gemini model locked for deterministic judging |
 | `OPENAI_API_KEY` | `""` | OpenAI API key (when using openai) |
 | `OPENAI_BASE_URL`| `https://api.openai.com/v1` | OpenAI API base URL |
 | `OPENAI_MODEL` | `gpt-4o-mini` | OpenAI model name |

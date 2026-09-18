@@ -66,8 +66,24 @@ class TestFrontendAssets(unittest.TestCase):
         self.assertIn("tacticalRationaleCard", index_html, "Tactical decision rationale missing")
         self.assertIn("interpretationTraceCard", index_html, "Interpretation trace matrix missing")
         self.assertIn("whatIfSimulatorCard", index_html, "What-if sensitivity simulator missing")
-        self.assertIn("Bangladesh National Grid Context", index_html, "Bangladesh grid context missing")
         self.assertIn("toggleBaselineBtn", index_html, "Baseline toggle button missing")
+
+    def test_login_and_dashboard_gating_prevents_preview_flash(self):
+        """Assert dashboard shell is hidden by default and login view is shown to prevent preview flash."""
+        index_html = (FRONTEND_DIR / "index.html").read_text(encoding="utf-8")
+        styles_css = (FRONTEND_DIR / "styles.css").read_text(encoding="utf-8")
+
+        # HTML element gating
+        self.assertIn('<header id="appHeader" role="banner" style="display:none;">', index_html)
+        self.assertIn('<main id="mainContent" role="main" style="display:none;">', index_html)
+        self.assertIn('<section id="loginView" class="login-view-wrap"', index_html)
+        # loginView should NOT have inline display:none
+        self.assertNotIn('<section id="loginView" class="login-view-wrap" style="display:none;"', index_html)
+
+        # CSS gating rules
+        self.assertIn("html.not-authenticated #appHeader", styles_css)
+        self.assertIn("html.not-authenticated #mainContent", styles_css)
+        self.assertIn("html.not-authenticated #loginView", styles_css)
 
 
 if __name__ == "__main__":

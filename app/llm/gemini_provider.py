@@ -12,20 +12,17 @@ from app.models.schemas import DirectiveInterpretationItem
 
 
 def normalize_gemini_model(model_name: Optional[str]) -> str:
-    """Ensure Gemini model identifier adheres to valid Google API format."""
+    """Ensure Gemini model identifier adheres to single stable model: gemini-2.5-flash."""
     cleaned = (model_name or "").strip()
     if cleaned.startswith("models/"):
         cleaned = cleaned.removeprefix("models/")
     
     cleaned_lower = cleaned.lower().replace(" ", "-")
-    if cleaned_lower in ("flash-2.5", "2.5-flash", "gemini-flash-2.5", "gemini-2.5", "2.5"):
+    if cleaned_lower in ("flash-2.5", "2.5-flash", "gemini-flash-2.5", "gemini-2.5", "2.5", "gemini-2.5-flash"):
         return "gemini-2.5-flash"
-    if cleaned_lower in ("flash-1.5", "1.5-flash", "gemini-flash-1.5", "gemini-1.5", "1.5"):
-        return "gemini-1.5-flash"
-    if cleaned_lower in ("flash-2.0", "2.0-flash", "gemini-flash-2.0", "gemini-2.0", "2.0"):
-        return "gemini-2.0-flash"
     
-    return cleaned or "gemini-2.5-flash"
+    # Restrict app strictly to single stable Gemini model
+    return "gemini-2.5-flash"
 
 
 class GeminiInterpreter(LLMInterpreter):
@@ -71,64 +68,51 @@ class GeminiInterpreter(LLMInterpreter):
         return urllib.request.Request(url, data=body, headers=headers, method="POST")
 
     def _call_gemini_sync(self, prompt: str) -> str:
-        """Synchronous call using configured transport with resilient model fallback."""
-        models_to_try = [self.model]
-        for candidate in ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]:
-            if candidate not in models_to_try:
-                models_to_try.append(candidate)
+        """Synchronous call using configured transport with single stable gemini-2.5-flash model."""
+        req = self.build_request(prompt, model_override=self.model)
+        try:
+            raw_response = self.transport(req, self.timeout_seconds)
+            data = json.loads(raw_response)
+            if not isinstance(data, dict):
+                raise LLMInterpretationError("Unexpected non-dictionary root in Gemini API response")
 
-        last_error: Optional[Exception] = None
-        for current_model in models_to_try:
-            req = self.build_request(prompt, model_override=current_model)
-            try:
-                raw_response = self.transport(req, self.timeout_seconds)
-                data = json.loads(raw_response)
-                if not isinstance(data, dict):
-                    raise LLMInterpretationError("Unexpected non-dictionary root in Gemini API response")
+            candidates = data.get("candidates")
+            if not isinstance(candidates, list) or len(candidates) == 0:
+                raise LLMInterpretationError("No candidates returned by Gemini model")
 
-                candidates = data.get("candidates")
-                if not isinstance(candidates, list) or len(candidates) == 0:
-                    raise LLMInterpretationError("No candidates returned by Gemini model")
+            candidate = candidates[0]
+            if not isinstance(candidate, dict):
+                raise LLMInterpretationError("Malformed candidate in Gemini API response")
 
-                candidate = candidates[0]
-                if not isinstance(candidate, dict):
-                    raise LLMInterpretationError("Malformed candidate in Gemini API response")
+            content = candidate.get("content")
+            if not isinstance(content, dict):
+                raise LLMInterpretationError("Malformed content in Gemini candidate")
 
-                content = candidate.get("content")
-                if not isinstance(content, dict):
-                    raise LLMInterpretationError("Malformed content in Gemini candidate")
+            parts = content.get("parts")
+            if not isinstance(parts, list) or len(parts) == 0:
+                raise LLMInterpretationError("Empty parts in Gemini content")
 
-                parts = content.get("parts")
-                if not isinstance(parts, list) or len(parts) == 0:
-                    raise LLMInterpretationError("Empty parts in Gemini content")
+            part = parts[0]
+            if not isinstance(part, dict) or "text" not in part:
+                raise LLMInterpretationError("Missing text in Gemini response part")
 
-                part = parts[0]
-                if not isinstance(part, dict) or "text" not in part:
-                    raise LLMInterpretationError("Missing text in Gemini response part")
+            return str(part["text"])
 
-                return str(part["text"])
-
-            except urllib.error.HTTPError as e:
-                # If 404 (model not found) and another fallback candidate is available, retry
-                if e.code == 404 and current_model != models_to_try[-1]:
-                    last_error = LLMInterpretationError(
-                        f"Gemini API HTTP Error {e.code}: {e.reason} for model '{current_model}'"
-                    )
-                    continue
-                # Safe exception without leaking API key
-                raise LLMInterpretationError(f"Gemini API HTTP Error {e.code}: {e.reason}") from None
-            except urllib.error.URLError as e:
-                raise LLMInterpretationError(f"Gemini API connection error: {e.reason}") from None
-            except json.JSONDecodeError as e:
-                raise LLMInterpretationError(f"Failed to parse Gemini provider response as JSON: {str(e)}") from None
-            except LLMInterpretationError:
-                raise
-            except Exception as e:
-                raise LLMInterpretationError(f"Gemini API call failed: {type(e).__name__}") from None
-
-        if last_error:
-            raise last_error
-        raise LLMInterpretationError("Gemini API call failed: all model attempts exhausted")
+        except urllib.error.HTTPError as e:
+            # Handle rate-limit (429) or transient server errors gracefully without altering model strategy
+            if e.code == 429:
+                raise LLMInterpretationError("Gemini API rate limit exceeded (HTTP 429): Resource exhausted") from None
+            if e.code == 503:
+                raise LLMInterpretationError("Gemini API service temporarily unavailable (HTTP 503)") from None
+            raise LLMInterpretationError(f"Gemini API HTTP Error {e.code}: {e.reason}") from None
+        except urllib.error.URLError as e:
+            raise LLMInterpretationError(f"Gemini API connection error: {e.reason}") from None
+        except json.JSONDecodeError as e:
+            raise LLMInterpretationError(f"Failed to parse Gemini provider response as JSON: {str(e)}") from None
+        except LLMInterpretationError:
+            raise
+        except Exception as e:
+            raise LLMInterpretationError(f"Gemini API call failed: {type(e).__name__}") from None
 
     def parse_model_text(
         self, raw_text: str, notes_count: int, battery_capacity_kwh: float

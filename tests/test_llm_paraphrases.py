@@ -131,6 +131,113 @@ class TestLLMParaphrases(unittest.TestCase):
         self.assertEqual(res[2].note_index, 2)
         self.assertEqual(res[2].directive_type, "no_op")
 
+    def test_paraphrase_solar_cut_by_30_percent(self):
+        """'cut by 30%' -> usable factor 0.70."""
+        notes = ["Rooftop solar output will be cut by 30% between 1 PM and 3 PM due to dust storms."]
+        res = asyncio.run(
+            self.interpreter.interpret_notes(notes, battery_capacity_kwh=200.0, scenario_id="TEST-P01")
+        )
+        self.assertEqual(res[0].directive_type, "solar_reduction")
+        self.assertAlmostEqual(res[0].structured_adjustment["factor"], 0.70, places=2)
+        self.assertEqual(res[0].structured_adjustment["hours"], [13, 14])
+
+    def test_paraphrase_solar_only_20_percent_should_count(self):
+        """'only 20% should count' -> usable factor 0.20."""
+        notes = ["Due to panel shading, only 20% should count from 11 AM until 1 PM."]
+        res = asyncio.run(
+            self.interpreter.interpret_notes(notes, battery_capacity_kwh=200.0, scenario_id="TEST-P02")
+        )
+        self.assertEqual(res[0].directive_type, "solar_reduction")
+        self.assertAlmostEqual(res[0].structured_adjustment["factor"], 0.20, places=2)
+        self.assertEqual(res[0].structured_adjustment["hours"], [11, 12])
+
+    def test_paraphrase_solar_roughly_half_normal_output(self):
+        """'roughly half of normal output' -> usable factor 0.50."""
+        notes = ["Cloud cover will yield roughly half of normal output between 3 PM and 6 PM."]
+        res = asyncio.run(
+            self.interpreter.interpret_notes(notes, battery_capacity_kwh=200.0, scenario_id="TEST-P03")
+        )
+        self.assertEqual(res[0].directive_type, "solar_reduction")
+        self.assertAlmostEqual(res[0].structured_adjustment["factor"], 0.50, places=2)
+        self.assertEqual(res[0].structured_adjustment["hours"], [15, 16, 17])
+
+    def test_paraphrase_reserve_40_percent_capacity(self):
+        """'keep at least 40% of battery capacity' on 200 kWh -> 80.0 kWh reserve."""
+        notes = ["Keep at least 40% of battery capacity in reserve from 6 PM until 9 PM."]
+        res = asyncio.run(
+            self.interpreter.interpret_notes(notes, battery_capacity_kwh=200.0, scenario_id="TEST-P04")
+        )
+        self.assertEqual(res[0].directive_type, "minimum_battery_reserve")
+        self.assertAlmostEqual(res[0].structured_adjustment["minimum_energy_kwh"], 80.0, places=2)
+        self.assertEqual(res[0].structured_adjustment["hours"], [18, 19, 20])
+
+    def test_paraphrase_reserve_no_less_than_120_kwh(self):
+        """'no less than 120 kWh' -> 120.0 kWh reserve."""
+        notes = ["The battery must maintain no less than 120 kWh from 5 PM to 8 PM."]
+        res = asyncio.run(
+            self.interpreter.interpret_notes(notes, battery_capacity_kwh=200.0, scenario_id="TEST-P05")
+        )
+        self.assertEqual(res[0].directive_type, "minimum_battery_reserve")
+        self.assertAlmostEqual(res[0].structured_adjustment["minimum_energy_kwh"], 120.0, places=2)
+        self.assertEqual(res[0].structured_adjustment["hours"], [17, 18, 19])
+
+    def test_paraphrase_no_charge_accept_no_additional_energy(self):
+        """'must not accept any additional energy' -> no_charge_window."""
+        notes = ["The energy storage system must not accept any additional energy between 2 PM and 5 PM."]
+        res = asyncio.run(
+            self.interpreter.interpret_notes(notes, battery_capacity_kwh=200.0, scenario_id="TEST-P06")
+        )
+        self.assertEqual(res[0].directive_type, "no_charge_window")
+        self.assertEqual(res[0].structured_adjustment["hours"], [14, 15, 16])
+
+    def test_paraphrase_no_charge_charging_prohibited_or_unavailable(self):
+        """'battery charging is prohibited' & 'charging unavailable' -> no_charge_window."""
+        notes = [
+            "Battery charging is prohibited from 1 PM until 3 PM.",
+            "Substation maintenance makes charging unavailable between 3 PM and 6 PM.",
+        ]
+        res = asyncio.run(
+            self.interpreter.interpret_notes(notes, battery_capacity_kwh=200.0, scenario_id="TEST-P07")
+        )
+        self.assertEqual(res[0].directive_type, "no_charge_window")
+        self.assertEqual(res[0].structured_adjustment["hours"], [13, 14])
+        self.assertEqual(res[1].directive_type, "no_charge_window")
+        self.assertEqual(res[1].structured_adjustment["hours"], [15, 16, 17])
+
+    def test_paraphrase_no_discharge_cannot_discharge(self):
+        """'cannot discharge energy' -> no_discharge_window."""
+        notes = ["The battery cannot discharge energy during the 5 PM to 7 PM protection window."]
+        res = asyncio.run(
+            self.interpreter.interpret_notes(notes, battery_capacity_kwh=200.0, scenario_id="TEST-P08")
+        )
+        self.assertEqual(res[0].directive_type, "no_discharge_window")
+        self.assertEqual(res[0].structured_adjustment["hours"], [17, 18])
+
+    def test_paraphrase_grid_cap_stay_below_and_no_more_than(self):
+        """'must stay below 180 kWh' & 'no more than 90 kWh' -> max_grid_window."""
+        notes = [
+            "Campus intake must stay below 180 kWh from 6 PM until 9 PM.",
+            "Grid intake can be no more than 90 kWh between 11 AM and 2 PM.",
+        ]
+        res = asyncio.run(
+            self.interpreter.interpret_notes(notes, battery_capacity_kwh=200.0, scenario_id="TEST-P09")
+        )
+        self.assertEqual(res[0].directive_type, "max_grid_window")
+        self.assertAlmostEqual(res[0].structured_adjustment["max_grid_kwh"], 180.0, places=2)
+        self.assertEqual(res[0].structured_adjustment["hours"], [18, 19, 20])
+        self.assertEqual(res[1].directive_type, "max_grid_window")
+        self.assertAlmostEqual(res[1].structured_adjustment["max_grid_kwh"], 90.0, places=2)
+        self.assertEqual(res[1].structured_adjustment["hours"], [11, 12, 13])
+
+    def test_paraphrase_through_9_pm_window(self):
+        """'through 9 PM' in evening peak context -> [18, 19, 20]."""
+        notes = ["Feeder constraints require grid import to stay below 150 kWh through 9 PM."]
+        res = asyncio.run(
+            self.interpreter.interpret_notes(notes, battery_capacity_kwh=200.0, scenario_id="TEST-P10")
+        )
+        self.assertEqual(res[0].directive_type, "max_grid_window")
+        self.assertEqual(res[0].structured_adjustment["hours"], [18, 19, 20])
+
 
 if __name__ == "__main__":
     unittest.main()

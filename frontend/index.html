@@ -12,10 +12,25 @@
   <meta name="description" content="GridWise LLM-Assisted Smart Campus Energy Optimizer Console">
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+    /* Immediate inline auth gate: prevent dashboard shell flash before auth confirmation */
+    (function() {
+      try {
+        var user = sessionStorage.getItem("gridwise_auth_user") || localStorage.getItem("gridwise_auth_user");
+        if (!user) {
+          document.documentElement.classList.add("not-authenticated");
+        } else {
+          document.documentElement.classList.add("is-authenticated");
+        }
+      } catch (e) {
+        document.documentElement.classList.add("not-authenticated");
+      }
+    })();
+  </script>
 </head>
 <body>
-  <!-- Login Screen Overlay / Authentication Gate -->
-  <section id="loginView" class="login-view-wrap" style="display:none;" aria-label="System Authentication">
+  <!-- Login Screen Overlay / Authentication Gate (Visible by default until auth is confirmed) -->
+  <section id="loginView" class="login-view-wrap" aria-label="System Authentication">
     <div class="login-card">
       <div class="login-header">
         <div class="brand-logo" style="justify-content:center; margin-bottom:0.35rem;">
@@ -88,8 +103,8 @@
 
   <a href="#mainContent" class="skip-to-content">Skip to main content</a>
 
-  <!-- Header Navigation / Mobile App Bar -->
-  <header id="appHeader" role="banner">
+  <!-- Header Navigation / Mobile App Bar (Hidden until session is authenticated) -->
+  <header id="appHeader" role="banner" style="display:none;">
     <div class="brand-section">
       <div class="brand-logo" aria-label="GridWise Platform">
         <span class="brand-bolt">⚡</span>
@@ -131,8 +146,8 @@
     </div>
   </header>
 
-  <!-- Mobile Segmented Navigation Bar -->
-  <nav id="mobileNavTabs" class="mobile-segmented-tabs mobile-only" aria-label="View Switcher">
+  <!-- Mobile Segmented Navigation Bar (Hidden until authenticated) -->
+  <nav id="mobileNavTabs" class="mobile-segmented-tabs mobile-only" aria-label="View Switcher" style="display:none;">
     <button id="tabNavScenario" class="mobile-tab-btn active" data-view="scenarioView">
       <span>1. Scenario Setup</span>
     </button>
@@ -141,8 +156,8 @@
     </button>
   </nav>
 
-  <!-- Main Grid Layout / Mobile Views -->
-  <main id="mainContent" role="main">
+  <!-- Main Grid Layout / Mobile Views (Hidden until authenticated) -->
+  <main id="mainContent" role="main" style="display:none;">
     
     <!-- Left Column: Scenario & Profile Configuration -->
     <section id="scenarioView" class="panel mobile-view-panel view-active" aria-labelledby="scenarioHeading">
@@ -167,19 +182,6 @@
         </div>
       </div>
 
-      <!-- Bangladesh Microgrid & Time-of-Use Energy Story -->
-      <div class="info-callout" style="border-left: 3px solid #f59e0b; margin-bottom: 0.85rem; padding: 0.5rem 0.65rem;">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.2rem;">
-          <div style="display:flex; align-items:center; gap:0.35rem;">
-            <span>🇧🇩</span>
-            <strong style="font-size:0.75rem; color:var(--text-primary);">Bangladesh National Grid Context</strong>
-          </div>
-          <span class="explainer-chip" style="font-size:0.65rem;">BPDB / DESCO / DPDC</span>
-        </div>
-        <span style="font-size:0.7rem; color:var(--text-secondary); line-height:1.35; display:block;">
-          Under Bangladesh commercial/institutional tariffs, electricity costs surge to <strong>৳18.00/kWh during the evening peak window (17:00–23:00)</strong> versus ৳8.00–12.00/kWh off-peak. GridWise stores daytime solar and low-cost off-peak grid energy to displace high-tariff peak intake, reducing campus electricity bills by 15–25% and preventing local distribution feeder overloads.
-        </span>
-      </div>
 
       <!-- Scenario ID -->
       <div class="form-group">
@@ -608,12 +610,9 @@
           <div class="form-group" id="geminiModelGroup">
             <label for="cfgGeminiModel" class="form-label">Gemini Model</label>
             <select id="cfgGeminiModel" class="select-control">
-              <option value="gemini-2.5-flash" selected>gemini-2.5-flash (Flash 2.5 - Default Recommended)</option>
-              <option value="gemini-2.0-flash">gemini-2.0-flash (Flash 2.0 - Ultra Fast)</option>
-              <option value="gemini-1.5-flash">gemini-1.5-flash (Flash 1.5 - Standard)</option>
-              <option value="gemini-2.5-pro">gemini-2.5-pro (Pro 2.5 - High Reasoning)</option>
-              <option value="gemini-1.5-pro">gemini-1.5-pro (Pro 1.5 - Reasoning)</option>
+              <option value="gemini-2.5-flash" selected>gemini-2.5-flash (Flash 2.5 - Official Hackathon Model)</option>
             </select>
+            <span class="field-help">Locked to gemini-2.5-flash for deterministic, stable evaluation.</span>
           </div>
 
           <!-- OpenAI Compatible Settings -->

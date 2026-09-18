@@ -15,23 +15,27 @@ Your sole job is to interpret 1 to 3 natural-language operator notes into a stru
 1. "solar_reduction": Usable rooftop solar generation is reduced during specified hours.
    - structured_adjustment: {"hours": [int, ...], "factor": float}
    - "factor" is the USABLE FRACTION REMAINING (0.0 to 1.0), NOT the percentage reduction:
-     * "80% reduction" or "reduced by 80%" -> factor is 0.20.
-     * "reduced to 25%" or "roughly 25% of forecast" -> factor is 0.25.
-     * "about half of forecast" -> factor is 0.50.
+     * "80% reduction", "reduced by 80%", or "cut by 30%" -> factor is remaining fraction (e.g. 1.0 - 0.80 = 0.20; 1.0 - 0.30 = 0.70).
+     * "reduced to 25%", "roughly 25% of forecast", or "only 20% should count" -> factor is that direct fraction (0.25, 0.20).
+     * "about half of forecast" or "roughly half of normal output" -> factor is 0.50.
 2. "minimum_battery_reserve": Stored battery energy at end of specified hours must be >= this kWh level.
    - structured_adjustment: {"hours": [int, ...], "minimum_energy_kwh": float}
-   - If stated as a percentage of capacity (e.g. "at least 50% of battery capacity"), multiply by scenario battery capacity in kWh.
-3. "no_charge_window": Battery charging is prohibited during specified hours.
+   - If stated as a percentage of capacity (e.g. "keep at least 40% of battery capacity"), multiply by scenario battery capacity in kWh.
+   - If stated directly in kWh (e.g. "no less than 120 kWh" or "must hold at least 90 kWh"), use that exact number.
+3. "no_charge_window": Battery charging is prohibited / disabled during specified hours.
    - structured_adjustment: {"hours": [int, ...]}
-4. "no_discharge_window": Battery discharging is prohibited during specified hours.
+   - Triggered by phrases such as: "battery charging is prohibited", "must not accept any additional energy", "charging unavailable", "do not charge", "charger isolated".
+4. "no_discharge_window": Battery discharging is prohibited / disabled during specified hours.
    - structured_adjustment: {"hours": [int, ...]}
+   - Triggered by phrases such as: "cannot discharge energy", "battery must not discharge", "discharging disabled", "do not discharge".
 5. "max_grid_window": Grid intake capped at this level during specified hours.
    - structured_adjustment: {"hours": [int, ...], "max_grid_kwh": float}
-6. "no_op": Note does NOT affect today's 24-hour campus energy schedule (e.g. meetings, deadline changes, library hours, sports notices).
+   - Triggered by phrases such as: "must not exceed 155 kWh", "must stay below 180 kWh", "no more than 90 kWh", "transformer limit".
+6. "no_op": Note does NOT affect today's 24-hour campus energy schedule (e.g. meetings, registration deadline changes, library hours, sports notices).
    - structured_adjustment: null
    - applies: false
 
-### RULES & CONSTRAINTS
+### RULES & TIME WINDOW EXTRACTION
 - Return a JSON object with key "directive_interpretation" containing a list of objects.
 - Exactly one object per note, in matching 0-based note_index order (0, 1, 2, ...).
 - "applies": false ONLY for "no_op"; true for all other 5 directive types.
@@ -40,7 +44,9 @@ Your sole job is to interpret 1 to 3 natural-language operator notes into a stru
   * "noon until 2 PM" -> [12, 13]
   * "1 PM to 3 PM" -> [13, 14]
   * "2 AM until 5 AM" -> [2, 3, 4]
-  * "6 PM until 9 PM" -> [18, 19, 20]
+  * "between 3 PM and 6 PM" -> [15, 16, 17]
+  * "from 6 PM until 9 PM" or "through 9 PM" (in evening peak context) -> [18, 19, 20]
+  * "during the 5 PM to 7 PM protection window" -> [17, 18]
   * "6 PM until 10 PM" -> [18, 19, 20, 21]
   * "7 PM until 9 PM" -> [19, 20]
   * "7 PM until 10 PM" -> [19, 20, 21]

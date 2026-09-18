@@ -107,17 +107,15 @@ class Settings(BaseModel):
     @field_validator("gemini_model", mode="before")
     @classmethod
     def validate_gemini_model(cls, v: Any) -> str:
+        # Strictly lock app to single stable Gemini model: gemini-2.5-flash
         cleaned = str(v or "gemini-2.5-flash").strip()
         if cleaned.startswith("models/"):
             cleaned = cleaned.removeprefix("models/")
         cleaned_lower = cleaned.lower().replace(" ", "-")
-        if cleaned_lower in ("flash-2.5", "2.5-flash", "gemini-flash-2.5", "gemini-2.5", "2.5"):
+        if cleaned_lower in ("flash-2.5", "2.5-flash", "gemini-flash-2.5", "gemini-2.5", "2.5", "gemini-2.5-flash"):
             return "gemini-2.5-flash"
-        if cleaned_lower in ("flash-1.5", "1.5-flash", "gemini-flash-1.5", "gemini-1.5", "1.5"):
-            return "gemini-1.5-flash"
-        if cleaned_lower in ("flash-2.0", "2.0-flash", "gemini-flash-2.0", "gemini-2.0", "2.0"):
-            return "gemini-2.0-flash"
-        return cleaned or "gemini-2.5-flash"
+        # Any other value defaults to the single stable supported model
+        return "gemini-2.5-flash"
 
     @field_validator("llm_max_retries")
     @classmethod

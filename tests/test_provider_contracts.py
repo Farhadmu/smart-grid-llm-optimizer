@@ -159,7 +159,7 @@ class TestProviderContracts(unittest.TestCase):
         self.assertIn("missing 'directive_interpretation' key", str(ctx.exception))
 
     def test_gemini_model_normalization(self):
-        """Assert models/ prefix and human aliases are normalized to standard identifiers."""
+        """Assert models/ prefix and human aliases are strictly normalized to gemini-2.5-flash."""
         interpreter1 = GeminiInterpreter(api_key="dummy", model="models/gemini-2.5-flash")
         self.assertEqual(interpreter1.model, "gemini-2.5-flash")
 
@@ -167,43 +167,51 @@ class TestProviderContracts(unittest.TestCase):
         self.assertEqual(interpreter2.model, "gemini-2.5-flash")
 
         interpreter3 = GeminiInterpreter(api_key="dummy", model="models/gemini-1.5-flash")
-        self.assertEqual(interpreter3.model, "gemini-1.5-flash")
+        self.assertEqual(interpreter3.model, "gemini-2.5-flash")
 
-    def test_gemini_404_fallback_resilience(self):
-        """Assert that an unexpected 404 automatically falls back across supported models."""
+    def test_gemini_single_model_lock_and_rate_limit_handling(self):
+        """Assert that the provider uses only gemini-2.5-flash and handles 429 without model hopping."""
         import urllib.error
         calls = []
 
-        def mock_transport(req: urllib.request.Request, timeout: float) -> str:
+        def mock_rate_limit_transport(req: urllib.request.Request, timeout: float) -> str:
             calls.append(req.full_url)
-            if "gemini-unknown-model" in req.full_url:
-                raise urllib.error.HTTPError(
-                    url=req.full_url, code=404, msg="Not Found", hdrs={}, fp=None
-                )
-            return json.dumps({
-                "candidates": [
-                    {
-                        "content": {
-                            "parts": [
-                                {
-                                    "text": json.dumps({"directive_interpretation": []})
-                                }
-                            ]
-                        }
-                    }
-                ]
-            })
+            raise urllib.error.HTTPError(
+                url=req.full_url, code=429, msg="Too Many Requests", hdrs={}, fp=None
+            )
 
         interpreter = GeminiInterpreter(
             api_key="dummy",
-            model="gemini-unknown-model",
-            transport=mock_transport,
+            model="gemini-2.5-flash",
+            transport=mock_rate_limit_transport,
         )
-        result = interpreter._call_gemini_sync("Hello")
-        self.assertIn("directive_interpretation", result)
-        self.assertGreaterEqual(len(calls), 2)
-        self.assertIn("gemini-unknown-model", calls[0])
-        self.assertIn("gemini-2.5-flash", calls[1])
+
+        with self.assertRaises(LLMInterpretationError) as ctx:
+            interpreter._call_gemini_sync("Hello")
+
+        self.assertIn("rate limit exceeded (HTTP 429)", str(ctx.exception))
+        # Verify exactly one call was made without candidate model hopping
+        self.assertEqual(len(calls), 1)
+        self.assertIn("gemini-2.5-flash", calls[0])
+
+    def test_gemini_transient_503_error_handling(self):
+        """Assert that transient 503 errors raise controlled LLMInterpretationError."""
+        import urllib.error
+        def mock_503_transport(req: urllib.request.Request, timeout: float) -> str:
+            raise urllib.error.HTTPError(
+                url=req.full_url, code=503, msg="Service Unavailable", hdrs={}, fp=None
+            )
+
+        interpreter = GeminiInterpreter(
+            api_key="dummy",
+            model="gemini-2.5-flash",
+            transport=mock_503_transport,
+        )
+
+        with self.assertRaises(LLMInterpretationError) as ctx:
+            interpreter._call_gemini_sync("Hello")
+
+        self.assertIn("temporarily unavailable (HTTP 503)", str(ctx.exception))
 
 
 if __name__ == "__main__":

@@ -1316,9 +1316,21 @@ span.desktop-only {
   to { transform: translateY(0); opacity: 1; }
 }
 
-/* ==========================================================================
-   Authentication & Login View
-   ========================================================================== */
+/* Gated Authentication Visibility (Zero Flash of Dashboard Preview) */
+html.not-authenticated #appHeader,
+html.not-authenticated #mobileNavTabs,
+html.not-authenticated #mainContent {
+  display: none !important;
+}
+
+html.not-authenticated #loginView {
+  display: flex !important;
+}
+
+html.is-authenticated #loginView {
+  display: none !important;
+}
+
 .login-view-wrap {
   min-height: 100vh;
   width: 100%;

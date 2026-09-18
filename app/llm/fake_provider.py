@@ -11,12 +11,6 @@ def _parse_time_window(text: str) -> Optional[List[int]]:
     """Parse common 12-hour / 24-hour time ranges into start-inclusive, end-exclusive hours."""
     t_lower = text.lower()
 
-    # Pattern: X (am/pm/noon) to/until/and Y (am/pm/noon)
-    # Examples:
-    # "noon until 2 pm", "1 pm to 3 pm", "2 am until 5 am", "10 am until noon",
-    # "11 am and 2 pm", "11 am until 1 pm", "5 pm until 7 pm", "6 pm until 9 pm",
-    # "6 pm until 10 pm", "7 pm until 9 pm", "7 pm until 10 pm"
-
     def time_to_hour(s: str) -> Optional[int]:
         s = s.strip()
         if s in ("noon", "12 noon", "12 pm"):
@@ -34,13 +28,19 @@ def _parse_time_window(text: str) -> Optional[List[int]]:
             hr = 0
         return hr
 
-    # match "from A (am/pm/noon) until/to/and B (am/pm/noon)" or "between A ... and B ..."
-    pattern = r"(?:from|between)?\s*(\d+(?::\d+)?\s*(?:am|pm)?|noon|midnight)\s*(?:until|to|-|and)\s*(\d+(?::\d+)?\s*(?:am|pm)?|noon|midnight)"
+    # 1. Match "through Y pm" / "until Y pm" (e.g., "through 9 PM", "through 9:00 PM")
+    m_through = re.search(r"(?:through|until)\s*(\d+(?::\d+)?\s*(?:am|pm)?|noon|midnight)", t_lower)
+    # Check if there is also an explicit start or window phrase
+    # E.g. "during the 5 PM to 7 PM protection window"
+    m_window = re.search(r"(?:during\s+the\s+)?(\d+(?::\d+)?\s*(?:am|pm)?|noon|midnight)\s*(?:to|-|until)\s*(\d+(?::\d+)?\s*(?:am|pm)?|noon|midnight)\s*(?:protection\s+|maintenance\s+|testing\s+)?(?:window|period)?", t_lower)
+
+    # 2. Standard pattern: "from/between A until/to/-/and B"
+    pattern = r"(?:from|between|during)?\s*(\d+(?::\d+)?\s*(?:am|pm)?|noon|midnight)\s*(?:until|to|-|and)\s*(\d+(?::\d+)?\s*(?:am|pm)?|noon|midnight)"
     match = re.search(pattern, t_lower)
+
     if match:
         start_str = match.group(1)
         end_str = match.group(2)
-        # If start didn't have am/pm, inherit from end if sensible
         if "am" not in start_str and "pm" not in start_str and start_str not in ("noon", "midnight"):
             if "pm" in end_str:
                 start_str += " pm"
@@ -53,10 +53,19 @@ def _parse_time_window(text: str) -> Optional[List[int]]:
         if h_start is not None and h_end is not None:
             if h_start < h_end:
                 return list(range(h_start, h_end))
-            elif h_start > h_end:  # Crossing midnight
+            elif h_start > h_end:
                 return sorted(list(range(h_start, 24)) + list(range(0, h_end)))
             else:
                 return [h_start]
+
+    # 3. Standalone "through Y pm" when part of evening peak context (default starts at 18/6 PM)
+    if m_through and ("through" in t_lower):
+        end_str = m_through.group(1)
+        h_end = time_to_hour(end_str)
+        if h_end is not None:
+            # Default start to 18 (6 PM) if evening context, else max(0, h_end - 3)
+            h_start = 18 if h_end > 18 else max(0, h_end - 3)
+            return list(range(h_start, h_end))
 
     return None
 
@@ -137,7 +146,7 @@ class FakeInterpreter(LLMInterpreter):
 
             # 2. Solar reduction
             is_solar = any(
-                w in n_lower for w in ["solar", "panel", "cloud", "cleaning", "wash", "inverter"]
+                w in n_lower for w in ["solar", "panel", "cloud", "cleaning", "wash", "inverter", "sunlight", "cut by", "should count"]
             ) and not is_noop
 
             # 3. Battery reserve
@@ -149,6 +158,9 @@ class FakeInterpreter(LLMInterpreter):
                     "stored in the battery",
                     "reserve",
                     "data center requires",
+                    "no less than",
+                    "minimum battery",
+                    "must hold at least",
                 ]
             ) and not is_noop
 
@@ -160,8 +172,13 @@ class FakeInterpreter(LLMInterpreter):
                         "charger will be isolated",
                         "charging circuit will be unavailable",
                         "battery charging is disabled",
+                        "battery charging is prohibited",
+                        "charging unavailable",
                         "do not charge",
                         "no charge",
+                        "must not accept any additional energy",
+                        "not accept any additional energy",
+                        "charging is not allowed",
                     ]
                 )
                 and not is_noop
@@ -175,7 +192,11 @@ class FakeInterpreter(LLMInterpreter):
                         "must not discharge",
                         "do not discharge",
                         "discharge is disabled",
+                        "cannot discharge energy",
+                        "cannot discharge",
                         "no discharge",
+                        "discharge unavailable",
+                        "discharging is prohibited",
                     ]
                 )
                 and not is_noop
@@ -190,14 +211,17 @@ class FakeInterpreter(LLMInterpreter):
                         "never draw more than",
                         "transformer limit",
                         "stay at or below",
+                        "must stay below",
+                        "stay below",
+                        "no more than",
                         "grid intake",
                         "grid import must",
                         "feeder is operating under",
+                        "cap grid",
                     ]
                 )
                 and not is_noop
             )
-
 
             hours = _parse_time_window(note) or [12, 13]
 
@@ -206,6 +230,14 @@ class FakeInterpreter(LLMInterpreter):
                 factor = 0.5  # default
                 if "80% reduction" in n_lower or "reduced by 80%" in n_lower:
                     factor = 0.20
+                elif "cut by" in n_lower:
+                    m_cut = re.search(r"cut\s+by\s+(\d+)%", n_lower)
+                    if m_cut:
+                        factor = round(1.0 - float(m_cut.group(1)) / 100.0, 4)
+                elif "only" in n_lower and "should count" in n_lower:
+                    m_count = re.search(r"only\s+(\d+)%\s+should\s+count", n_lower)
+                    if m_count:
+                        factor = round(float(m_count.group(1)) / 100.0, 4)
                 elif "25%" in n_lower:
                     factor = 0.25
                 elif "half" in n_lower or "50%" in n_lower:

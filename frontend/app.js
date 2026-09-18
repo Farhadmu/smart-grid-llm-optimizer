@@ -118,6 +118,8 @@ function clearAuthUser() {
 function applyAuthState() {
   const user = getAuthUser();
   if (user) {
+    document.documentElement.classList.remove("not-authenticated");
+    document.documentElement.classList.add("is-authenticated");
     if (loginView) loginView.style.display = "none";
     if (appHeader) appHeader.style.display = "flex";
     if (mobileNavTabs) mobileNavTabs.style.display = "";
@@ -126,6 +128,8 @@ function applyAuthState() {
     if (userRoleDisplay) userRoleDisplay.textContent = user.roleShort || "Judge";
     checkFirstTimeTour();
   } else {
+    document.documentElement.classList.remove("is-authenticated");
+    document.documentElement.classList.add("not-authenticated");
     if (loginView) loginView.style.display = "flex";
     if (appHeader) appHeader.style.display = "none";
     if (mobileNavTabs) mobileNavTabs.style.display = "none";
