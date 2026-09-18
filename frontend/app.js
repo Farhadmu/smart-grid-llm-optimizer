@@ -849,13 +849,13 @@ function updateTrustPanel(data) {
   judgeTrustPanel.style.display = "block";
   if (trustGuardrailStatus) {
     const count = data.directive_interpretation?.length || 0;
-    trustGuardrailStatus.textContent = `${count}/${count} Directives Guardrailed`;
+    trustGuardrailStatus.textContent = `${count}/${count} Verified`;
   }
   if (trustSolverStatus) {
-    trustSolverStatus.textContent = "HiGHS LP Optimal (0.0 Gap)";
+    trustSolverStatus.textContent = "Optimal (0.0 Gap)";
   }
   if (trustReplayStatus) {
-    trustReplayStatus.textContent = "12/12 Invariants Validated";
+    trustReplayStatus.textContent = "12/12 Validated";
   }
   if (trustNeutralityStatus) {
     const p = data.hourly_plan;
@@ -863,7 +863,7 @@ function updateTrustPanel(data) {
       const eod = p[23].battery_energy_after_kwh;
       const init = lastRequest.battery.initial_energy_kwh;
       const drift = Math.abs(eod - init);
-      trustNeutralityStatus.textContent = `E[23]=${eod.toFixed(1)} kWh (${drift.toFixed(2)} drift)`;
+      trustNeutralityStatus.textContent = `E[23]=${eod.toFixed(1)} kWh (±${drift.toFixed(2)})`;
     }
   }
 }

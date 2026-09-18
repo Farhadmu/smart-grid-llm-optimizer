@@ -1740,17 +1740,20 @@ html.is-authenticated #loginView {
   display: flex;
   align-items: center;
   gap: 0.55rem;
+  min-width: 0;
 }
 
 .trust-badge-icon {
   font-size: 1.15rem;
   line-height: 1;
+  flex-shrink: 0;
 }
 
 .trust-badge-content {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
+  min-width: 0;
   overflow: hidden;
 }
 
@@ -1759,6 +1762,8 @@ html.is-authenticated #loginView {
   font-weight: 700;
   color: var(--text-primary);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .trust-badge-sub {
@@ -1766,6 +1771,8 @@ html.is-authenticated #loginView {
   color: var(--color-success);
   font-weight: 600;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ========================================================
