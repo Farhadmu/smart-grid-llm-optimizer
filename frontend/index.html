@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GridWise — Smart Campus Energy Optimizer</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <!-- Top Navigation / Server Configuration -->
+  <header>
+    <div class="brand-title">
+      <span>⚡ GridWise</span>
+      <span class="brand-badge">Demo Dashboard</span>
+    </div>
+
+    <div class="server-config">
+      <input type="text" id="apiBaseInput" class="server-input" value="http://127.0.0.1:8000" placeholder="Backend URL" title="Backend base URL" />
+      <button id="checkHealthBtn" class="btn btn-secondary">Check Health</button>
+      <div class="status-pill">
+        <span id="statusDot" class="status-dot checking"></span>
+        <span id="statusText">Checking...</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Non-Judged Architecture Disclaimer -->
+  <div class="disclaimer-banner">
+    <span>⚠️ <strong>Disclaimer:</strong> This UI dashboard is for demonstration, rehearsals, and video recordings. All directive interpretations, linear optimizations, and chronological replays are computed strictly by the backend HTTP service (<code>POST /optimize-energy</code>).</span>
+  </div>
+
+  <main>
+    <!-- Left Column: Inputs & Scenario Configuration -->
+    <section class="panel">
+      <div class="panel-header">
+        <h2 class="panel-title">1. Scenario & Constraints</h2>
+        <div class="sample-selector">
+          <select id="sampleSelect" class="select-input">
+            <option value="">Loading public samples...</option>
+          </select>
+          <button id="loadSampleBtn" class="btn btn-secondary">Load</button>
+        </div>
+      </div>
+
+      <!-- Scenario ID -->
+      <div class="form-group">
+        <label class="form-label" for="scenarioIdInput">Scenario ID</label>
+        <input type="text" id="scenarioIdInput" class="form-control" value="DEMO-SCENARIO-01" />
+      </div>
+
+      <!-- Operator Notes -->
+      <div class="form-group">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <label class="form-label">Operator Directives / Notes (1 to 3)</label>
+          <button id="addNoteBtn" class="btn btn-secondary" style="padding:0.2rem 0.5rem; font-size:0.75rem;">+ Add Note</button>
+        </div>
+        <div id="notesContainer" class="notes-container"></div>
+      </div>
+
+      <!-- Battery Specifications -->
+      <div class="form-group">
+        <label class="form-label">Battery Specifications</label>
+        <div class="battery-grid">
+          <div>
+            <span class="form-label" style="font-size:0.75rem;">Capacity (kWh)</span>
+            <input type="number" step="1" id="batteryCapacity" class="form-control" value="200" />
+          </div>
+          <div>
+            <span class="form-label" style="font-size:0.75rem;">Initial (kWh)</span>
+            <input type="number" step="1" id="batteryInitial" class="form-control" value="100" />
+          </div>
+          <div>
+            <span class="form-label" style="font-size:0.75rem;">Minimum (kWh)</span>
+            <input type="number" step="1" id="batteryMin" class="form-control" value="20" />
+          </div>
+          <div>
+            <span class="form-label" style="font-size:0.75rem;">Max Charge (kW)</span>
+            <input type="number" step="1" id="batteryMaxCharge" class="form-control" value="50" />
+          </div>
+          <div>
+            <span class="form-label" style="font-size:0.75rem;">Max Discharge (kW)</span>
+            <input type="number" step="1" id="batteryMaxDischarge" class="form-control" value="50" />
+          </div>
+        </div>
+      </div>
+
+      <!-- 24-Hour Profile Table -->
+      <div class="form-group">
+        <label class="form-label">24-Hour Energy Profile (Demand, Solar, Tariff)</label>
+        <div class="hours-table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 50px; text-align:center;">Hour</th>
+                <th>Demand (kWh)</th>
+                <th>Solar (kWh)</th>
+                <th>Tariff (BDT)</th>
+              </tr>
+            </thead>
+            <tbody id="hoursTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Action Button -->
+      <div>
+        <button id="optimizeBtn" class="btn btn-primary" style="width:100%; justify-content:center; padding:0.75rem; font-size:1rem;">
+          <span>⚡</span> Run Energy Optimization
+        </button>
+      </div>
+
+      <!-- Error Envelope Alert -->
+      <div id="errorAlert" class="alert alert-danger" style="display:none;">
+        <span id="errorTitle" class="alert-title"></span>
+        <span id="errorMessage"></span>
+      </div>
+    </section>
+
+    <!-- Right Column: Results, Directives & Analytics -->
+    <section class="panel">
+      <div class="panel-header">
+        <h2 class="panel-title">2. Optimal Plan & Replay Insights</h2>
+      </div>
+
+      <!-- High-Level KPIs -->
+      <div class="kpi-cards">
+        <div class="kpi-card">
+          <span class="kpi-label">Total Cost</span>
+          <span id="kpiCost" class="kpi-value">—</span>
+          <span class="kpi-unit">BDT</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">Total Grid Import</span>
+          <span id="kpiGrid" class="kpi-value">—</span>
+          <span class="kpi-unit">kWh</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">Peak Grid Load</span>
+          <span id="kpiPeak" class="kpi-value">—</span>
+          <span class="kpi-unit">kWh</span>
+        </div>
+      </div>
+
+      <!-- Plan Strategy Summary -->
+      <div class="form-group">
+        <label class="form-label">Strategy Summary</label>
+        <div id="planSummaryText" class="plan-summary-box">
+          Press "Run Energy Optimization" to generate the schedule.
+        </div>
+      </div>
+
+      <!-- Directive Interpretation Cards -->
+      <div class="form-group">
+        <label class="form-label">Interpreted Directives (LLM + Guardrails)</label>
+        <div id="directivesList" class="directives-list">
+          <div style="color:var(--text-muted); font-size:0.85rem;">No optimization run yet.</div>
+        </div>
+      </div>
+
+      <!-- Energy Flow Chart -->
+      <div class="chart-container">
+        <div class="chart-header">
+          <span class="form-label">24-Hour Energy Supply vs Demand</span>
+          <div class="chart-legend">
+            <div class="legend-item"><span class="legend-color" style="background:#06b6d4;"></span> Solar</div>
+            <div class="legend-item"><span class="legend-color" style="background:#38bdf8;"></span> Grid</div>
+            <div class="legend-item"><span class="legend-color" style="background:#f59e0b;"></span> Battery Discharge</div>
+            <div class="legend-item"><span class="legend-color" style="background:#f43f5e;"></span> Demand</div>
+          </div>
+        </div>
+        <canvas id="energyChart"></canvas>
+      </div>
+
+      <!-- Battery State & Tariff Chart -->
+      <div class="chart-container">
+        <div class="chart-header">
+          <span class="form-label">Battery Energy & Time-of-Use Tariff</span>
+          <div class="chart-legend">
+            <div class="legend-item"><span class="legend-color" style="background:#10b981;"></span> Stored Battery (kWh)</div>
+            <div class="legend-item"><span class="legend-color" style="background:#a855f7;"></span> Tariff (BDT/kWh)</div>
+          </div>
+        </div>
+        <canvas id="batteryChart"></canvas>
+      </div>
+
+      <!-- Emitted Plan Table -->
+      <div class="form-group">
+        <label class="form-label">Emitted 24-Hour Hourly Schedule</label>
+        <div class="hours-table-wrap" style="max-height: 220px;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 45px; text-align:center;">Hour</th>
+                <th>Grid (kWh)</th>
+                <th>Solar Used</th>
+                <th>Action</th>
+                <th>Battery (kWh)</th>
+                <th>Battery After</th>
+              </tr>
+            </thead>
+            <tbody id="resultsTableBody">
+              <tr>
+                <td colspan="6" style="text-align:center; color:var(--text-muted); padding:1rem;">No results yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- JSON Inspector -->
+      <div class="form-group">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div class="tabs-header">
+            <button id="tabResponse" class="tab-btn active">Response JSON</button>
+            <button id="tabRequest" class="tab-btn">Request JSON</button>
+          </div>
+          <div class="inspector-actions">
+            <button id="copyJsonBtn" class="btn btn-secondary" style="padding:0.2rem 0.6rem; font-size:0.75rem;">Copy JSON</button>
+            <button id="downloadJsonBtn" class="btn btn-secondary" style="padding:0.2rem 0.6rem; font-size:0.75rem;">Download</button>
+          </div>
+        </div>
+        <div id="jsonInspector" class="json-box">// No data yet. Run an optimization to inspect.</div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

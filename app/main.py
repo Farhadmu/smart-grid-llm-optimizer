@@ -10,6 +10,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
+from fastapi.middleware.cors import CORSMiddleware
+
 from app.config import settings
 from app.llm.factory import create_llm_interpreter
 from app.models.schemas import (
@@ -39,8 +41,18 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["X-Correlation-ID"],
+)
+
 # Initialize the configured LLM interpreter
 interpreter = create_llm_interpreter(settings)
+
 
 
 @app.middleware("http")

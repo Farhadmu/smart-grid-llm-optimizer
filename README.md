@@ -382,3 +382,22 @@ We gratefully acknowledge the open-source libraries and algorithms powering Grid
 - Single 24-hour horizon per request (multi-day rolling horizon is out of scope per problem statement).
 - Grid export is not supported (all surplus solar is curtailed).
 - Battery round-trip efficiency is idealized at 100% per organizer model.
+
+---
+
+## 13. Demonstration Dashboard (Frontend)
+
+An optional, browser-based demonstration UI is provided under `frontend/` for video presentations, team rehearsal, and visual scenario inspection.
+
+> [!NOTE]
+> **Judging Boundary:**
+> The frontend is strictly an optional visualization tool and is **never** required by the judge evaluation harness. The judge test runner communicates directly with the HTTP API endpoints (`GET /health` and `POST /optimize-energy`). The browser UI does not perform any client-side note interpretation or solver calculations; it delegates 100% of scheduling to the backend.
+
+### Running the Frontend
+```bash
+# Serve frontend on port 3000
+cd frontend
+python3 -m http.server 3000
+```
+Open `http://localhost:3000` in your browser. Configure the backend URL (defaults to `http://127.0.0.1:8000`), load any of the 10 official public sample cases, and trigger optimization to inspect the dual-axis charts, directive cards, and raw JSON exchange.
+
