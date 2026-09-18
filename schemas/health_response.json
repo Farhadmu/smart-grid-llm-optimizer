@@ -1,0 +1,14 @@
+{
+  "additionalProperties": false,
+  "description": "Health check response.",
+  "properties": {
+    "status": {
+      "const": "ok",
+      "default": "ok",
+      "title": "Status",
+      "type": "string"
+    }
+  },
+  "title": "HealthResponse",
+  "type": "object"
+}

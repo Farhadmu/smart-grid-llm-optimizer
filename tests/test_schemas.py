@@ -206,6 +206,26 @@ class TestSchemas(unittest.TestCase):
         req = OptimizeEnergyRequest(**req_dict)
         self.assertEqual(req.scenario_id, raw_id)
 
+    def test_exported_schemas_exist_and_match_models(self):
+        """Verify that schemas/ contains all required contract JSON files."""
+        import json
+        from pathlib import Path
+        schemas_dir = Path(__file__).resolve().parent.parent / "schemas"
+        
+        expected_files = [
+            "openapi.json",
+            "optimize_energy_request.json",
+            "optimize_energy_response.json",
+            "error_envelope.json",
+            "health_response.json",
+        ]
+        for fname in expected_files:
+            file_path = schemas_dir / fname
+            self.assertTrue(file_path.exists(), f"Missing required schema file: {fname}")
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                self.assertIsInstance(data, dict)
+
 
 if __name__ == "__main__":
     unittest.main()

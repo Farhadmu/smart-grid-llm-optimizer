@@ -30,6 +30,7 @@ COPY --chown=appuser:appuser app/ app/
 COPY --chown=appuser:appuser scripts/ scripts/
 COPY --chown=appuser:appuser frontend/ frontend/
 COPY --chown=appuser:appuser tests/ tests/
+COPY --chown=appuser:appuser schemas/ schemas/
 
 USER appuser
 

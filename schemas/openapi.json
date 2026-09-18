@@ -1,0 +1,408 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "GridWise Optimization Service",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health Check",
+        "description": "Readiness health check.\nMust return HTTP 200 with exactly {\"status\": \"ok\"}.\nMust not call model providers or optimizer.",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/optimize-energy": {
+      "post": {
+        "summary": "Optimize Energy Endpoint",
+        "description": "Endpoint accepting 24-hour scenario and operator notes,\nreturning validated directives and cost-minimal schedule.",
+        "operationId": "optimize_energy_endpoint_optimize_energy_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OptimizeEnergyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OptimizeEnergyResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BatteryInput": {
+        "properties": {
+          "capacity_kwh": {
+            "type": "number",
+            "title": "Capacity Kwh",
+            "description": "Maximum battery storage capacity in kWh"
+          },
+          "initial_energy_kwh": {
+            "type": "number",
+            "title": "Initial Energy Kwh",
+            "description": "Battery energy at beginning of day in kWh"
+          },
+          "minimum_energy_kwh": {
+            "type": "number",
+            "title": "Minimum Energy Kwh",
+            "description": "Minimum allowed battery reserve in kWh"
+          },
+          "max_charge_kwh_per_hour": {
+            "type": "number",
+            "title": "Max Charge Kwh Per Hour",
+            "description": "Maximum charging rate in kWh/hour"
+          },
+          "max_discharge_kwh_per_hour": {
+            "type": "number",
+            "title": "Max Discharge Kwh Per Hour",
+            "description": "Maximum discharging rate in kWh/hour"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "capacity_kwh",
+          "initial_energy_kwh",
+          "minimum_energy_kwh",
+          "max_charge_kwh_per_hour",
+          "max_discharge_kwh_per_hour"
+        ],
+        "title": "BatteryInput",
+        "description": "Battery parameter specifications."
+      },
+      "DirectiveInterpretationItem": {
+        "properties": {
+          "note_index": {
+            "type": "integer",
+            "title": "Note Index",
+            "description": "Zero-based index of corresponding input note"
+          },
+          "applies": {
+            "type": "boolean",
+            "title": "Applies",
+            "description": "False only for no_op; true for all active directives"
+          },
+          "directive_type": {
+            "type": "string",
+            "enum": [
+              "solar_reduction",
+              "minimum_battery_reserve",
+              "no_charge_window",
+              "no_discharge_window",
+              "max_grid_window",
+              "no_op"
+            ],
+            "title": "Directive Type",
+            "description": "One of the 6 allowed directive types"
+          },
+          "structured_adjustment": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Structured Adjustment",
+            "description": "Adjustment parameters, or null for no_op"
+          },
+          "explanation": {
+            "type": "string",
+            "title": "Explanation",
+            "description": "Short explanation of directive interpretation"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "note_index",
+          "applies",
+          "directive_type",
+          "explanation"
+        ],
+        "title": "DirectiveInterpretationItem",
+        "description": "Structured interpretation for a single operator note."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok",
+            "title": "Status",
+            "default": "ok"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "HealthResponse",
+        "description": "Health check response."
+      },
+      "HourInput": {
+        "properties": {
+          "hour": {
+            "type": "integer",
+            "title": "Hour",
+            "description": "Hour index from 0 through 23"
+          },
+          "demand_kwh": {
+            "type": "number",
+            "title": "Demand Kwh",
+            "description": "Forecasted electrical demand in kWh"
+          },
+          "solar_kwh": {
+            "type": "number",
+            "title": "Solar Kwh",
+            "description": "Forecasted rooftop solar generation in kWh"
+          },
+          "tariff_bdt_per_kwh": {
+            "type": "number",
+            "title": "Tariff Bdt Per Kwh",
+            "description": "Grid electricity price in BDT per kWh"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "hour",
+          "demand_kwh",
+          "solar_kwh",
+          "tariff_bdt_per_kwh"
+        ],
+        "title": "HourInput",
+        "description": "Input specification for a single hour."
+      },
+      "HourlyPlanItem": {
+        "properties": {
+          "hour": {
+            "type": "integer",
+            "title": "Hour",
+            "description": "Hour index (0-23)"
+          },
+          "grid_kwh": {
+            "type": "number",
+            "title": "Grid Kwh",
+            "description": "Grid electricity imported in kWh"
+          },
+          "solar_used_kwh": {
+            "type": "number",
+            "title": "Solar Used Kwh",
+            "description": "Solar electricity used in kWh"
+          },
+          "battery_action": {
+            "type": "string",
+            "enum": [
+              "charge",
+              "discharge",
+              "idle"
+            ],
+            "title": "Battery Action",
+            "description": "Battery action: charge, discharge, or idle"
+          },
+          "battery_kwh": {
+            "type": "number",
+            "title": "Battery Kwh",
+            "description": "Magnitude of battery charge/discharge in kWh"
+          },
+          "battery_energy_after_kwh": {
+            "type": "number",
+            "title": "Battery Energy After Kwh",
+            "description": "Battery stored energy at end of hour in kWh"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "hour",
+          "grid_kwh",
+          "solar_used_kwh",
+          "battery_action",
+          "battery_kwh",
+          "battery_energy_after_kwh"
+        ],
+        "title": "HourlyPlanItem",
+        "description": "Optimized operational plan for a single hour."
+      },
+      "OptimizeEnergyRequest": {
+        "properties": {
+          "scenario_id": {
+            "type": "string",
+            "title": "Scenario Id",
+            "description": "Scenario identifier"
+          },
+          "operator_notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Operator Notes",
+            "description": "List of 1 to 3 natural-language operator notes"
+          },
+          "hours": {
+            "items": {
+              "$ref": "#/components/schemas/HourInput"
+            },
+            "type": "array",
+            "title": "Hours",
+            "description": "24 hourly entries for hours 0..23"
+          },
+          "battery": {
+            "$ref": "#/components/schemas/BatteryInput",
+            "description": "Battery specifications"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "scenario_id",
+          "operator_notes",
+          "hours",
+          "battery"
+        ],
+        "title": "OptimizeEnergyRequest",
+        "description": "Top-level scenario optimization request."
+      },
+      "OptimizeEnergyResponse": {
+        "properties": {
+          "scenario_id": {
+            "type": "string",
+            "title": "Scenario Id"
+          },
+          "directive_interpretation": {
+            "items": {
+              "$ref": "#/components/schemas/DirectiveInterpretationItem"
+            },
+            "type": "array",
+            "title": "Directive Interpretation"
+          },
+          "hourly_plan": {
+            "items": {
+              "$ref": "#/components/schemas/HourlyPlanItem"
+            },
+            "type": "array",
+            "title": "Hourly Plan"
+          },
+          "total_grid_kwh": {
+            "type": "number",
+            "title": "Total Grid Kwh"
+          },
+          "total_cost_bdt": {
+            "type": "number",
+            "title": "Total Cost Bdt"
+          },
+          "peak_grid_kwh": {
+            "type": "number",
+            "title": "Peak Grid Kwh"
+          },
+          "plan_summary": {
+            "type": "string",
+            "title": "Plan Summary"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "scenario_id",
+          "directive_interpretation",
+          "hourly_plan",
+          "total_grid_kwh",
+          "total_cost_bdt",
+          "peak_grid_kwh",
+          "plan_summary"
+        ],
+        "title": "OptimizeEnergyResponse",
+        "description": "Top-level successful optimization response matching organizer contract exactly."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

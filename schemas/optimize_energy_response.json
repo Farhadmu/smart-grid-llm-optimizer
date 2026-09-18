@@ -1,0 +1,160 @@
+{
+  "$defs": {
+    "DirectiveInterpretationItem": {
+      "additionalProperties": false,
+      "description": "Structured interpretation for a single operator note.",
+      "properties": {
+        "note_index": {
+          "description": "Zero-based index of corresponding input note",
+          "title": "Note Index",
+          "type": "integer"
+        },
+        "applies": {
+          "description": "False only for no_op; true for all active directives",
+          "title": "Applies",
+          "type": "boolean"
+        },
+        "directive_type": {
+          "description": "One of the 6 allowed directive types",
+          "enum": [
+            "solar_reduction",
+            "minimum_battery_reserve",
+            "no_charge_window",
+            "no_discharge_window",
+            "max_grid_window",
+            "no_op"
+          ],
+          "title": "Directive Type",
+          "type": "string"
+        },
+        "structured_adjustment": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Adjustment parameters, or null for no_op",
+          "title": "Structured Adjustment"
+        },
+        "explanation": {
+          "description": "Short explanation of directive interpretation",
+          "title": "Explanation",
+          "type": "string"
+        }
+      },
+      "required": [
+        "note_index",
+        "applies",
+        "directive_type",
+        "explanation"
+      ],
+      "title": "DirectiveInterpretationItem",
+      "type": "object"
+    },
+    "HourlyPlanItem": {
+      "additionalProperties": false,
+      "description": "Optimized operational plan for a single hour.",
+      "properties": {
+        "hour": {
+          "description": "Hour index (0-23)",
+          "title": "Hour",
+          "type": "integer"
+        },
+        "grid_kwh": {
+          "description": "Grid electricity imported in kWh",
+          "title": "Grid Kwh",
+          "type": "number"
+        },
+        "solar_used_kwh": {
+          "description": "Solar electricity used in kWh",
+          "title": "Solar Used Kwh",
+          "type": "number"
+        },
+        "battery_action": {
+          "description": "Battery action: charge, discharge, or idle",
+          "enum": [
+            "charge",
+            "discharge",
+            "idle"
+          ],
+          "title": "Battery Action",
+          "type": "string"
+        },
+        "battery_kwh": {
+          "description": "Magnitude of battery charge/discharge in kWh",
+          "title": "Battery Kwh",
+          "type": "number"
+        },
+        "battery_energy_after_kwh": {
+          "description": "Battery stored energy at end of hour in kWh",
+          "title": "Battery Energy After Kwh",
+          "type": "number"
+        }
+      },
+      "required": [
+        "hour",
+        "grid_kwh",
+        "solar_used_kwh",
+        "battery_action",
+        "battery_kwh",
+        "battery_energy_after_kwh"
+      ],
+      "title": "HourlyPlanItem",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Top-level successful optimization response matching organizer contract exactly.",
+  "properties": {
+    "scenario_id": {
+      "title": "Scenario Id",
+      "type": "string"
+    },
+    "directive_interpretation": {
+      "items": {
+        "$ref": "#/$defs/DirectiveInterpretationItem"
+      },
+      "title": "Directive Interpretation",
+      "type": "array"
+    },
+    "hourly_plan": {
+      "items": {
+        "$ref": "#/$defs/HourlyPlanItem"
+      },
+      "title": "Hourly Plan",
+      "type": "array"
+    },
+    "total_grid_kwh": {
+      "title": "Total Grid Kwh",
+      "type": "number"
+    },
+    "total_cost_bdt": {
+      "title": "Total Cost Bdt",
+      "type": "number"
+    },
+    "peak_grid_kwh": {
+      "title": "Peak Grid Kwh",
+      "type": "number"
+    },
+    "plan_summary": {
+      "title": "Plan Summary",
+      "type": "string"
+    }
+  },
+  "required": [
+    "scenario_id",
+    "directive_interpretation",
+    "hourly_plan",
+    "total_grid_kwh",
+    "total_cost_bdt",
+    "peak_grid_kwh",
+    "plan_summary"
+  ],
+  "title": "OptimizeEnergyResponse",
+  "type": "object"
+}

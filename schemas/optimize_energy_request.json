@@ -1,0 +1,115 @@
+{
+  "$defs": {
+    "BatteryInput": {
+      "additionalProperties": false,
+      "description": "Battery parameter specifications.",
+      "properties": {
+        "capacity_kwh": {
+          "description": "Maximum battery storage capacity in kWh",
+          "title": "Capacity Kwh",
+          "type": "number"
+        },
+        "initial_energy_kwh": {
+          "description": "Battery energy at beginning of day in kWh",
+          "title": "Initial Energy Kwh",
+          "type": "number"
+        },
+        "minimum_energy_kwh": {
+          "description": "Minimum allowed battery reserve in kWh",
+          "title": "Minimum Energy Kwh",
+          "type": "number"
+        },
+        "max_charge_kwh_per_hour": {
+          "description": "Maximum charging rate in kWh/hour",
+          "title": "Max Charge Kwh Per Hour",
+          "type": "number"
+        },
+        "max_discharge_kwh_per_hour": {
+          "description": "Maximum discharging rate in kWh/hour",
+          "title": "Max Discharge Kwh Per Hour",
+          "type": "number"
+        }
+      },
+      "required": [
+        "capacity_kwh",
+        "initial_energy_kwh",
+        "minimum_energy_kwh",
+        "max_charge_kwh_per_hour",
+        "max_discharge_kwh_per_hour"
+      ],
+      "title": "BatteryInput",
+      "type": "object"
+    },
+    "HourInput": {
+      "additionalProperties": false,
+      "description": "Input specification for a single hour.",
+      "properties": {
+        "hour": {
+          "description": "Hour index from 0 through 23",
+          "title": "Hour",
+          "type": "integer"
+        },
+        "demand_kwh": {
+          "description": "Forecasted electrical demand in kWh",
+          "title": "Demand Kwh",
+          "type": "number"
+        },
+        "solar_kwh": {
+          "description": "Forecasted rooftop solar generation in kWh",
+          "title": "Solar Kwh",
+          "type": "number"
+        },
+        "tariff_bdt_per_kwh": {
+          "description": "Grid electricity price in BDT per kWh",
+          "title": "Tariff Bdt Per Kwh",
+          "type": "number"
+        }
+      },
+      "required": [
+        "hour",
+        "demand_kwh",
+        "solar_kwh",
+        "tariff_bdt_per_kwh"
+      ],
+      "title": "HourInput",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Top-level scenario optimization request.",
+  "properties": {
+    "scenario_id": {
+      "description": "Scenario identifier",
+      "title": "Scenario Id",
+      "type": "string"
+    },
+    "operator_notes": {
+      "description": "List of 1 to 3 natural-language operator notes",
+      "items": {
+        "type": "string"
+      },
+      "title": "Operator Notes",
+      "type": "array"
+    },
+    "hours": {
+      "description": "24 hourly entries for hours 0..23",
+      "items": {
+        "$ref": "#/$defs/HourInput"
+      },
+      "title": "Hours",
+      "type": "array"
+    },
+    "battery": {
+      "$ref": "#/$defs/BatteryInput",
+      "description": "Battery specifications"
+    }
+  },
+  "required": [
+    "scenario_id",
+    "operator_notes",
+    "hours",
+    "battery"
+  ],
+  "title": "OptimizeEnergyRequest",
+  "type": "object"
+}
