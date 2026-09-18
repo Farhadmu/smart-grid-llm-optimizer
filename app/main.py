@@ -162,17 +162,27 @@ async def optimize_energy_endpoint(
         
         # Check optional client diagnostic header overrides
         gemini_key_header = raw_request.headers.get("X-Gemini-API-Key")
+        gemini_model_header = raw_request.headers.get("X-Gemini-Model")
+        openai_key_header = raw_request.headers.get("X-OpenAI-API-Key")
+        openai_model_header = raw_request.headers.get("X-OpenAI-Model")
+        openai_base_url_header = raw_request.headers.get("X-OpenAI-Base-URL")
         provider_header = raw_request.headers.get("X-LLM-Provider")
-        model_header = raw_request.headers.get("X-Gemini-Model")
 
-        if gemini_key_header or provider_header or model_header:
+        if any([gemini_key_header, gemini_model_header, openai_key_header, openai_model_header, openai_base_url_header, provider_header]):
             overrides = {}
             if gemini_key_header:
-                overrides["gemini_api_key"] = gemini_key_header
+                overrides["gemini_api_key"] = gemini_key_header.strip()
+            if gemini_model_header:
+                overrides["gemini_model"] = gemini_model_header.strip()
+            if openai_key_header:
+                overrides["openai_api_key"] = openai_key_header.strip()
+            if openai_model_header:
+                overrides["openai_model"] = openai_model_header.strip()
+            if openai_base_url_header:
+                overrides["openai_base_url"] = openai_base_url_header.strip().rstrip("/")
             if provider_header and provider_header.lower() in ("gemini", "fake", "openai"):
                 overrides["llm_provider"] = provider_header.lower()
-            if model_header:
-                overrides["gemini_model"] = model_header
+
             current_settings = current_settings.model_copy(update=overrides)
             current_interpreter = create_llm_interpreter(current_settings)
         else:

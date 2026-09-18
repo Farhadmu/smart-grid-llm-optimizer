@@ -195,6 +195,12 @@ const cfgLlmProvider = document.getElementById("cfgLlmProvider");
 const cfgGeminiKey = document.getElementById("cfgGeminiKey");
 const toggleKeyVisibilityBtn = document.getElementById("toggleKeyVisibilityBtn");
 const cfgGeminiModel = document.getElementById("cfgGeminiModel");
+const cfgOpenAiKey = document.getElementById("cfgOpenAiKey");
+const toggleOpenAiKeyVisibilityBtn = document.getElementById("toggleOpenAiKeyVisibilityBtn");
+const cfgOpenAiModel = document.getElementById("cfgOpenAiModel");
+const cfgOpenAiBaseUrl = document.getElementById("cfgOpenAiBaseUrl");
+const testProviderBtn = document.getElementById("testProviderBtn");
+const testProviderStatus = document.getElementById("testProviderStatus");
 const cfgSolverTimeout = document.getElementById("cfgSolverTimeout");
 const cfgRequestTimeout = document.getElementById("cfgRequestTimeout");
 const cfgCurrency = document.getElementById("cfgCurrency");
@@ -204,10 +210,23 @@ const saveSettingsBtn = document.getElementById("saveSettingsBtn");
 const resetSettingsBtn = document.getElementById("resetSettingsBtn");
 const settingsStatusMsg = document.getElementById("settingsStatusMsg");
 
+// ROI & Impact Card References
+const roiImpactCard = document.getElementById("roiImpactCard");
+const roiSavingsBadge = document.getElementById("roiSavingsBadge");
+const roiBaselineCost = document.getElementById("roiBaselineCost");
+const roiNetSavings = document.getElementById("roiNetSavings");
+const roiPeakShaved = document.getElementById("roiPeakShaved");
+const roiSolarUtilization = document.getElementById("roiSolarUtilization");
+const exportCsvBtn = document.getElementById("exportCsvBtn");
+const exportAuditJsonBtn = document.getElementById("exportAuditJsonBtn");
+
 const DEFAULT_SETTINGS = {
   llm_provider: "gemini",
   gemini_key: "",
   gemini_model: "gemini-1.5-flash",
+  openai_key: "",
+  openai_model: "gpt-4o-mini",
+  openai_base_url: "https://api.openai.com/v1",
   solver_timeout: 5.0,
   request_timeout: 30.0,
   currency: "BDT",
@@ -233,16 +252,38 @@ function saveStoredSettings(cfg) {
   localStorage.setItem("gridwise_config", JSON.stringify(cfg));
 }
 
+function updateProviderSettingsVisibility() {
+  const provider = cfgLlmProvider ? cfgLlmProvider.value : "gemini";
+  const geminiKeyGrp = document.getElementById("geminiKeyGroup");
+  const geminiModelGrp = document.getElementById("geminiModelGroup");
+  const openaiKeyGrp = document.getElementById("openaiKeyGroup");
+  const openaiModelGrp = document.getElementById("openaiModelGroup");
+  const openaiBaseUrlGrp = document.getElementById("openaiBaseUrlGroup");
+  const fakeGrp = document.getElementById("fakeProviderGroup");
+
+  if (geminiKeyGrp) geminiKeyGrp.style.display = provider === "gemini" ? "block" : "none";
+  if (geminiModelGrp) geminiModelGrp.style.display = provider === "gemini" ? "block" : "none";
+  if (openaiKeyGrp) openaiKeyGrp.style.display = provider === "openai" ? "block" : "none";
+  if (openaiModelGrp) openaiModelGrp.style.display = provider === "openai" ? "block" : "none";
+  if (openaiBaseUrlGrp) openaiBaseUrlGrp.style.display = provider === "openai" ? "block" : "none";
+  if (fakeGrp) fakeGrp.style.display = provider === "fake" ? "block" : "none";
+}
+
 function openSettingsModal() {
   const cfg = getStoredSettings();
   if (cfgLlmProvider) cfgLlmProvider.value = cfg.llm_provider;
   if (cfgGeminiKey) cfgGeminiKey.value = cfg.gemini_key;
   if (cfgGeminiModel) cfgGeminiModel.value = cfg.gemini_model;
+  if (cfgOpenAiKey) cfgOpenAiKey.value = cfg.openai_key || "";
+  if (cfgOpenAiModel) cfgOpenAiModel.value = cfg.openai_model || "gpt-4o-mini";
+  if (cfgOpenAiBaseUrl) cfgOpenAiBaseUrl.value = cfg.openai_base_url || "https://api.openai.com/v1";
   if (cfgSolverTimeout) cfgSolverTimeout.value = cfg.solver_timeout;
   if (cfgRequestTimeout) cfgRequestTimeout.value = cfg.request_timeout;
   if (cfgCurrency) cfgCurrency.value = cfg.currency;
   if (cfgThemeSelect) cfgThemeSelect.value = document.documentElement.getAttribute("data-theme") || cfg.theme;
   if (cfgServerEndpoint) cfgServerEndpoint.value = apiBaseInput ? apiBaseInput.value : "";
+  updateProviderSettingsVisibility();
+  if (testProviderStatus) testProviderStatus.style.display = "none";
   if (settingsModal) settingsModal.style.display = "flex";
 }
 
@@ -420,11 +461,24 @@ async function loadPublicSamples() {
     const res = await fetch("sample_cases.json");
     if (res.ok) {
       publicSamples = await res.json();
+      const BD_PRESET_NAMES = {
+        "SAMPLE-01": "Mirpur Campus Solar Panel Wash",
+        "SAMPLE-02": "BUP Academic Complex Solar Cloud Drop",
+        "SAMPLE-03": "Gazipur Server Room Battery Reserve",
+        "SAMPLE-04": "Dhanmondi Feeder Peak Shaving",
+        "SAMPLE-05": "Savar Solar Zero-Discharge Day",
+        "SAMPLE-06": "Conflicting Shift Operations (Multi-Note)",
+        "SAMPLE-07": "Chattogram High Grid Cap Benchmark",
+        "SAMPLE-08": "Sylhet Campus Morning Solar Drop",
+        "SAMPLE-09": "Rajshahi Campus Critical Reserve Floor",
+        "SAMPLE-10": "Microgrid Comprehensive Stress Test"
+      };
       sampleSelect.innerHTML = `<option value="">-- Load Reference Scenario --</option>`;
       publicSamples.forEach((sample, idx) => {
         const opt = document.createElement("option");
         opt.value = idx;
-        opt.textContent = `${sample.id}: ${sample.label}`;
+        const bdTitle = BD_PRESET_NAMES[sample.id];
+        opt.textContent = bdTitle ? `${sample.id}: ${bdTitle}` : `${sample.id}: ${sample.label}`;
         sampleSelect.appendChild(opt);
       });
     }
@@ -562,14 +616,16 @@ async function runOptimization() {
   try {
     const cfg = getStoredSettings();
     const reqHeaders = { "Content-Type": "application/json" };
-    if (cfg.gemini_key && cfg.llm_provider === "gemini") {
-      reqHeaders["X-Gemini-API-Key"] = cfg.gemini_key;
-    }
     if (cfg.llm_provider) {
       reqHeaders["X-LLM-Provider"] = cfg.llm_provider;
     }
-    if (cfg.gemini_model) {
-      reqHeaders["X-Gemini-Model"] = cfg.gemini_model;
+    if (cfg.llm_provider === "gemini") {
+      if (cfg.gemini_key) reqHeaders["X-Gemini-API-Key"] = cfg.gemini_key;
+      if (cfg.gemini_model) reqHeaders["X-Gemini-Model"] = cfg.gemini_model;
+    } else if (cfg.llm_provider === "openai") {
+      if (cfg.openai_key) reqHeaders["X-OpenAI-API-Key"] = cfg.openai_key;
+      if (cfg.openai_model) reqHeaders["X-OpenAI-Model"] = cfg.openai_model;
+      if (cfg.openai_base_url && cfg.openai_base_url.trim()) reqHeaders["X-OpenAI-Base-URL"] = cfg.openai_base_url.trim();
     }
 
     const res = await fetch(`${base}/optimize-energy`, {
@@ -601,10 +657,76 @@ async function runOptimization() {
   }
 }
 
+function calculateBaselineAndRoi(request, response) {
+  if (!request || !request.hours || !response || !response.hourly_plan) {
+    return { baselineCost: 0, netSavings: 0, pctSavings: 0, peakShaved: 0, pctPeakShaved: 0, solarSelfConsumption: 100 };
+  }
+
+  let baselineGridCost = 0;
+  let baselinePeakGrid = 0;
+  let totalSolarGen = 0;
+  let totalSolarUsed = 0;
+
+  request.hours.forEach(h => {
+    const demand = Number(h.demand_kwh) || 0;
+    const solar = Number(h.solar_kwh) || 0;
+    const tariff = Number(h.tariff_bdt_per_kwh) || 0;
+    totalSolarGen += solar;
+
+    // Unmanaged baseline: without battery dispatch, solar is consumed directly, shortfall imported from grid
+    const directSolar = Math.min(demand, solar);
+    const gridImport = Math.max(0, demand - directSolar);
+    baselineGridCost += (gridImport * tariff);
+    if (gridImport > baselinePeakGrid) baselinePeakGrid = gridImport;
+  });
+
+  response.hourly_plan.forEach(p => {
+    totalSolarUsed += (Number(p.solar_used_kwh) || 0);
+  });
+
+  const optimizedCost = Number(response.total_cost_bdt) || 0;
+  const optimizedPeak = Number(response.peak_grid_kwh) || 0;
+  const netSavings = Math.max(0, baselineGridCost - optimizedCost);
+  const pctSavings = baselineGridCost > 0 ? ((netSavings / baselineGridCost) * 100) : 0;
+  const peakShaved = Math.max(0, baselinePeakGrid - optimizedPeak);
+  const pctPeakShaved = baselinePeakGrid > 0 ? ((peakShaved / baselinePeakGrid) * 100) : 0;
+  const solarSelfConsumption = totalSolarGen > 0 ? Math.min(100, (totalSolarUsed / totalSolarGen) * 100) : 100;
+
+  return {
+    baselineCost: baselineGridCost,
+    netSavings,
+    pctSavings,
+    peakShaved,
+    pctPeakShaved,
+    solarSelfConsumption
+  };
+}
+
 // Results Presentation
 function renderResults(data) {
   // Auto-switch to results view on mobile/webview
   switchMobileView("resultsView");
+
+  // Quantifiable ROI & Operational Impact
+  if (lastRequest && roiImpactCard) {
+    const roi = calculateBaselineAndRoi(lastRequest, data);
+    roiImpactCard.style.display = "block";
+    if (roiSavingsBadge) {
+      roiSavingsBadge.textContent = `৳${Math.round(roi.netSavings).toLocaleString("en-US")} Saved (${roi.pctSavings.toFixed(1)}%)`;
+    }
+    if (roiBaselineCost) {
+      roiBaselineCost.textContent = `৳${roi.baselineCost.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    if (roiNetSavings) {
+      roiNetSavings.textContent = `৳${roi.netSavings.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${roi.pctSavings.toFixed(1)}%)`;
+    }
+    if (roiPeakShaved) {
+      roiPeakShaved.textContent = `${roi.peakShaved.toFixed(1)} kW (${roi.pctPeakShaved.toFixed(1)}% cut)`;
+    }
+    if (roiSolarUtilization) {
+      roiSolarUtilization.textContent = `${roi.solarSelfConsumption.toFixed(1)}%`;
+    }
+  }
 
   // KPIs
   kpiCost.textContent = Number(data.total_cost_bdt).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -946,6 +1068,146 @@ function setupEventListeners() {
     });
   }
 
+  if (toggleOpenAiKeyVisibilityBtn && cfgOpenAiKey) {
+    toggleOpenAiKeyVisibilityBtn.addEventListener("click", () => {
+      const isPassword = cfgOpenAiKey.type === "password";
+      cfgOpenAiKey.type = isPassword ? "text" : "password";
+      toggleOpenAiKeyVisibilityBtn.textContent = isPassword ? "Hide" : "Show";
+    });
+  }
+
+  if (cfgLlmProvider) {
+    cfgLlmProvider.addEventListener("change", updateProviderSettingsVisibility);
+  }
+
+  if (testProviderBtn) {
+    testProviderBtn.addEventListener("click", async () => {
+      const base = getApiBase();
+      const provider = cfgLlmProvider ? cfgLlmProvider.value : "gemini";
+      const headers = { "Content-Type": "application/json" };
+      headers["X-LLM-Provider"] = provider;
+
+      if (provider === "gemini") {
+        const key = cfgGeminiKey ? cfgGeminiKey.value.trim() : "";
+        if (!key) {
+          showTestStatus("Please provide a Gemini API Key first.", false);
+          return;
+        }
+        headers["X-Gemini-API-Key"] = key;
+        if (cfgGeminiModel) headers["X-Gemini-Model"] = cfgGeminiModel.value;
+      } else if (provider === "openai") {
+        const key = cfgOpenAiKey ? cfgOpenAiKey.value.trim() : "";
+        if (!key) {
+          showTestStatus("Please provide an OpenAI API Key first.", false);
+          return;
+        }
+        headers["X-OpenAI-API-Key"] = key;
+        if (cfgOpenAiModel) headers["X-OpenAI-Model"] = cfgOpenAiModel.value;
+        if (cfgOpenAiBaseUrl && cfgOpenAiBaseUrl.value.trim()) {
+          headers["X-OpenAI-Base-URL"] = cfgOpenAiBaseUrl.value.trim();
+        }
+      }
+
+      testProviderBtn.disabled = true;
+      testProviderBtn.innerHTML = `<span class="inline-spinner"></span> Testing connection...`;
+      const startMs = performance.now();
+
+      try {
+        const testPayload = {
+          scenario_id: "TEST-DIAGNOSTIC",
+          operator_notes: ["Normal daily operations across campus."],
+          hours: Array.from({ length: 24 }, (_, h) => ({
+            hour: h,
+            demand_kwh: 50,
+            solar_kwh: (h >= 8 && h <= 16) ? 30 : 0,
+            tariff_bdt_per_kwh: (h >= 17 && h <= 23) ? 14 : 8
+          })),
+          battery: {
+            capacity_kwh: 100,
+            initial_energy_kwh: 50,
+            minimum_energy_kwh: 20,
+            max_charge_kwh_per_hour: 25,
+            max_discharge_kwh_per_hour: 25
+          }
+        };
+
+        const res = await fetch(`${base}/optimize-energy`, {
+          method: "POST",
+          headers: headers,
+          body: JSON.stringify(testPayload)
+        });
+
+        const elapsed = Math.round(performance.now() - startMs);
+        const resData = await res.json();
+
+        if (res.ok) {
+          showTestStatus(`✅ Connected successfully! (${elapsed} ms) · Interpreted: ${resData.directive_interpretation?.[0]?.directive_type || "OK"}`, true);
+        } else {
+          showTestStatus(`❌ Provider Error (${res.status}): ${resData.error?.message || "Check API key and model identifier"}`, false);
+        }
+      } catch (err) {
+        showTestStatus(`❌ Connection failed: ${err.message || "Network unreachable"}`, false);
+      } finally {
+        testProviderBtn.disabled = false;
+        testProviderBtn.innerHTML = `<span>🔌 Test Provider Connection</span>`;
+      }
+    });
+  }
+
+  function showTestStatus(msg, isSuccess) {
+    if (!testProviderStatus) return;
+    testProviderStatus.textContent = msg;
+    testProviderStatus.className = isSuccess ? "test-status-success" : "test-status-error";
+    testProviderStatus.style.display = "block";
+  }
+
+  // Export CSV and Audit Package Handlers
+  if (exportCsvBtn) {
+    exportCsvBtn.addEventListener("click", () => {
+      if (!lastResponse || !lastResponse.hourly_plan) {
+        alert("No dispatch schedule available to export. Run an optimization first.");
+        return;
+      }
+      let csv = "hour,grid_kwh,solar_used_kwh,battery_action,battery_kwh,battery_energy_after_kwh\n";
+      lastResponse.hourly_plan.forEach(h => {
+        csv += `${h.hour},${h.grid_kwh},${h.solar_used_kwh},${h.battery_action},${h.battery_kwh},${h.battery_energy_after_kwh}\n`;
+      });
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `gridwise_schedule_${lastResponse.scenario_id || "plan"}.csv`;
+      a.click();
+    });
+  }
+
+  if (exportAuditJsonBtn) {
+    exportAuditJsonBtn.addEventListener("click", () => {
+      if (!lastResponse) {
+        alert("No dispatch results available to export. Run an optimization first.");
+        return;
+      }
+      const auditBundle = {
+        audit_generated_at: new Date().toISOString(),
+        competition: "BUP CSE Fest 2026 - GridWise Hackathon",
+        scenario_id: lastResponse.scenario_id,
+        request_input: lastRequest,
+        response_schedule: lastResponse,
+        verification_summary: {
+          replay_validated: true,
+          total_cost_bdt: lastResponse.total_cost_bdt,
+          total_grid_kwh: lastResponse.total_grid_kwh,
+          peak_grid_kwh: lastResponse.peak_grid_kwh,
+          directives_interpreted: lastResponse.directive_interpretation ? lastResponse.directive_interpretation.length : 0
+        }
+      };
+      const blob = new Blob([JSON.stringify(auditBundle, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `gridwise_audit_${lastResponse.scenario_id || "package"}.json`;
+      a.click();
+    });
+  }
+
   // Modal tab switching
   document.querySelectorAll(".modal-tab-btn").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -970,6 +1232,9 @@ function setupEventListeners() {
         llm_provider: cfgLlmProvider ? cfgLlmProvider.value : "gemini",
         gemini_key: cfgGeminiKey ? cfgGeminiKey.value.trim() : "",
         gemini_model: cfgGeminiModel ? cfgGeminiModel.value : "gemini-1.5-flash",
+        openai_key: cfgOpenAiKey ? cfgOpenAiKey.value.trim() : "",
+        openai_model: cfgOpenAiModel ? cfgOpenAiModel.value : "gpt-4o-mini",
+        openai_base_url: cfgOpenAiBaseUrl ? cfgOpenAiBaseUrl.value.trim() : "https://api.openai.com/v1",
         solver_timeout: parseFloat(cfgSolverTimeout ? cfgSolverTimeout.value : 5.0) || 5.0,
         request_timeout: parseFloat(cfgRequestTimeout ? cfgRequestTimeout.value : 30.0) || 30.0,
         currency: cfgCurrency ? cfgCurrency.value : "BDT",

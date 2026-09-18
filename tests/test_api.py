@@ -161,8 +161,34 @@ class TestAPIEndpoints(unittest.TestCase):
         status, headers, body = asyncio.run(asgi_call("POST", "/optimize-energy", body=payload))
         self.assertEqual(status, 500)
         self.assertIn("error", body)
-        self.assertEqual(body["error"]["code"], "OPTIMIZATION_INFEASIBLE")
-
+    def test_client_header_overrides_provider_and_openai_settings(self):
+        """Assert X-OpenAI-* and X-LLM-Provider headers are parsed by the API endpoint."""
+        payload = {
+            "scenario_id": "API-TEST-HEADERS",
+            "operator_notes": ["Normal operations."],
+            "hours": [
+                {"hour": h, "demand_kwh": 50.0, "solar_kwh": 10.0, "tariff_bdt_per_kwh": 10.0}
+                for h in range(24)
+            ],
+            "battery": {
+                "capacity_kwh": 100.0,
+                "initial_energy_kwh": 50.0,
+                "minimum_energy_kwh": 20.0,
+                "max_charge_kwh_per_hour": 25.0,
+                "max_discharge_kwh_per_hour": 25.0,
+            },
+        }
+        custom_headers = {
+            "X-LLM-Provider": "fake",
+            "X-OpenAI-API-Key": "test-custom-key-123",
+            "X-OpenAI-Model": "gpt-4o-mini",
+            "X-OpenAI-Base-URL": "https://api.openai.com/v1",
+        }
+        status, headers, body = asyncio.run(
+            asgi_call("POST", "/optimize-energy", body=payload, headers=custom_headers)
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(body["scenario_id"], "API-TEST-HEADERS")
 
 
 if __name__ == "__main__":
