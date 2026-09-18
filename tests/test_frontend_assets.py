@@ -60,6 +60,15 @@ class TestFrontendAssets(unittest.TestCase):
         self.assertIn("POST /optimize-energy", index_html)
         self.assertIn("optional demonstration", readme)
 
+    def test_judge_proof_and_explainability_elements_exist(self):
+        index_html = (FRONTEND_DIR / "index.html").read_text(encoding="utf-8")
+        self.assertIn("judgeTrustPanel", index_html, "Judge trust panel missing")
+        self.assertIn("tacticalRationaleCard", index_html, "Tactical decision rationale missing")
+        self.assertIn("interpretationTraceCard", index_html, "Interpretation trace matrix missing")
+        self.assertIn("whatIfSimulatorCard", index_html, "What-if sensitivity simulator missing")
+        self.assertIn("Bangladesh National Grid Context", index_html, "Bangladesh grid context missing")
+        self.assertIn("toggleBaselineBtn", index_html, "Baseline toggle button missing")
+
 
 if __name__ == "__main__":
     unittest.main()
