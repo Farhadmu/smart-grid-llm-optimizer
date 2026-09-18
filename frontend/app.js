@@ -1,19 +1,17 @@
 /**
- * GridWise Demonstration Dashboard - Frontend Application
- * Strictly consumes the backend HTTP API contract without client-side interpretation or solver heuristics.
+ * GridWise Executive Operations Interface - Dashboard Application
+ * Complies strictly with the organizer HTTP API contract:
+ * - Direct HTTP calls to GET /health and POST /optimize-energy
+ * - Zero client-side heuristic scheduling or directive interpretation
+ * - Pure presentation and accessible interaction
  */
 
-// Global State
+// Application State
 let publicSamples = [];
 let currentScenario = {
-  scenario_id: "DEMO-SCENARIO-01",
+  scenario_id: "CAMPUS-MICROGRID-01",
   operator_notes: ["The battery charging circuit will be disconnected between 2 PM and 4 PM."],
-  hours: Array.from({ length: 24 }, (_, h) => ({
-    hour: h,
-    demand_kwh: (50 + Math.sin(h / 3) * 20).toFixed(1) * 1,
-    solar_kwh: (h >= 6 && h <= 18 ? Math.sin((h - 6) / 12 * Math.PI) * 45 : 0).toFixed(1) * 1,
-    tariff_bdt_per_kwh: (h < 6 || h >= 22 ? 8.0 : h >= 17 && h <= 21 ? 18.0 : 12.0)
-  })),
+  hours: generateCampusProfile(),
   battery: {
     capacity_kwh: 200.0,
     initial_energy_kwh: 100.0,
@@ -27,24 +25,32 @@ let lastResponse = null;
 let lastRequest = null;
 let energyChart = null;
 let batteryChart = null;
+let activeTab = "response";
 
-// DOM Elements
+// DOM References
 const apiBaseInput = document.getElementById("apiBaseInput");
 const checkHealthBtn = document.getElementById("checkHealthBtn");
 const statusDot = document.getElementById("statusDot");
 const statusText = document.getElementById("statusText");
+
 const sampleSelect = document.getElementById("sampleSelect");
 const loadSampleBtn = document.getElementById("loadSampleBtn");
-
 const scenarioIdInput = document.getElementById("scenarioIdInput");
 const notesContainer = document.getElementById("notesContainer");
 const addNoteBtn = document.getElementById("addNoteBtn");
+
 const batteryCapacity = document.getElementById("batteryCapacity");
 const batteryInitial = document.getElementById("batteryInitial");
 const batteryMin = document.getElementById("batteryMin");
 const batteryMaxCharge = document.getElementById("batteryMaxCharge");
 const batteryMaxDischarge = document.getElementById("batteryMaxDischarge");
+
 const hoursTableBody = document.getElementById("hoursTableBody");
+const presetFlatBtn = document.getElementById("presetFlatBtn");
+const presetPeakBtn = document.getElementById("presetPeakBtn");
+const presetZeroBtn = document.getElementById("presetZeroBtn");
+const worstCaseBtn = document.getElementById("worstCaseBtn");
+
 const optimizeBtn = document.getElementById("optimizeBtn");
 const errorAlert = document.getElementById("errorAlert");
 const errorTitle = document.getElementById("errorTitle");
@@ -56,37 +62,77 @@ const kpiPeak = document.getElementById("kpiPeak");
 const planSummaryText = document.getElementById("planSummaryText");
 const directivesList = document.getElementById("directivesList");
 const resultsTableBody = document.getElementById("resultsTableBody");
-const jsonInspector = document.getElementById("jsonInspector");
+
 const tabResponse = document.getElementById("tabResponse");
 const tabRequest = document.getElementById("tabRequest");
 const copyJsonBtn = document.getElementById("copyJsonBtn");
 const downloadJsonBtn = document.getElementById("downloadJsonBtn");
+const jsonInspector = document.getElementById("jsonInspector");
 
-let activeTab = "response";
+// Helpers for Profiles
+function generateCampusProfile() {
+  return Array.from({ length: 24 }, (_, h) => {
+    // Normal campus load curve
+    const demand = (40 + (h >= 8 && h <= 18 ? 80 + Math.sin((h - 8) / 10 * Math.PI) * 60 : 15)).toFixed(1) * 1;
+    // Solar peak around midday
+    const solar = (h >= 7 && h <= 17 ? Math.sin((h - 7) / 10 * Math.PI) * 75 : 0).toFixed(1) * 1;
+    // Time-of-use tariff structure
+    const tariff = (h < 6 || h >= 22 ? 8.0 : (h >= 17 && h <= 21 ? 18.0 : 12.0));
+    return { hour: h, demand_kwh: demand, solar_kwh: solar, tariff_bdt_per_kwh: tariff };
+  });
+}
 
-// Initialization
+function generateFlatProfile() {
+  return Array.from({ length: 24 }, (_, h) => ({
+    hour: h,
+    demand_kwh: 60.0,
+    solar_kwh: (h >= 8 && h <= 16 ? 40.0 : 0.0),
+    tariff_bdt_per_kwh: 12.0
+  }));
+}
+
+function generateZeroProfile() {
+  return Array.from({ length: 24 }, (_, h) => ({
+    hour: h,
+    demand_kwh: 0.0,
+    solar_kwh: 0.0,
+    tariff_bdt_per_kwh: 10.0
+  }));
+}
+
+function generateWorstCaseProfile() {
+  return Array.from({ length: 24 }, (_, h) => ({
+    hour: h,
+    demand_kwh: 350.0, // High demand
+    solar_kwh: 0.0,   // Zero generation (cloudy/night)
+    tariff_bdt_per_kwh: (h >= 17 && h <= 22 ? 22.0 : 14.0)
+  }));
+}
+
+// Lifecycle Init
 async function init() {
-  loadPublicSamples();
+  await loadPublicSamples();
   renderInputs();
   checkHealth();
   setupEventListeners();
 }
 
+// Data Fetching
 async function loadPublicSamples() {
   try {
     const res = await fetch("sample_cases.json");
     if (res.ok) {
       publicSamples = await res.json();
-      sampleSelect.innerHTML = `<option value="">-- Choose a public sample case --</option>`;
+      sampleSelect.innerHTML = `<option value="">-- Load Reference Scenario --</option>`;
       publicSamples.forEach((sample, idx) => {
         const opt = document.createElement("option");
         opt.value = idx;
-        opt.textContent = `${sample.id} (${sample.label})`;
+        opt.textContent = `${sample.id}: ${sample.label}`;
         sampleSelect.appendChild(opt);
       });
     }
-  } catch (e) {
-    console.warn("Could not load public samples:", e);
+  } catch (err) {
+    console.warn("Could not load sample_cases.json:", err);
   }
 }
 
@@ -109,7 +155,7 @@ async function checkHealth() {
       statusText.textContent = "Online (200 OK)";
     } else {
       statusDot.className = "status-dot offline";
-      statusText.textContent = `Error ${res.status}`;
+      statusText.textContent = `Status ${res.status}`;
     }
   } catch (err) {
     statusDot.className = "status-dot offline";
@@ -117,7 +163,7 @@ async function checkHealth() {
   }
 }
 
-// Render Inputs
+// UI Rendering
 function renderInputs() {
   scenarioIdInput.value = currentScenario.scenario_id;
   batteryCapacity.value = currentScenario.battery.capacity_kwh;
@@ -136,9 +182,9 @@ function renderNotes() {
     const row = document.createElement("div");
     row.className = "note-row";
     row.innerHTML = `
-      <div class="note-badge">${idx}</div>
-      <input type="text" class="form-control note-input" data-index="${idx}" value="${escapeHtml(note)}" placeholder="Operator note..." />
-      <button class="btn-icon delete-note-btn" data-index="${idx}" title="Remove note" ${currentScenario.operator_notes.length <= 1 ? "disabled" : ""}>✕</button>
+      <span class="note-index-pill" aria-label="Note index ${idx}">#${idx}</span>
+      <input type="text" class="form-control note-input" data-index="${idx}" value="${escapeHtml(note)}" placeholder="Enter operator directive or constraint..." aria-label="Operator note text" />
+      <button class="btn-icon delete-note-btn" data-index="${idx}" aria-label="Remove note" ${currentScenario.operator_notes.length <= 1 ? "disabled" : ""}>✕</button>
     `;
     notesContainer.appendChild(row);
   });
@@ -148,19 +194,19 @@ function renderNotes() {
 
 function renderHoursTable() {
   hoursTableBody.innerHTML = "";
-  currentScenario.hours.forEach((h, idx) => {
+  currentScenario.hours.forEach((h) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td style="font-weight:600; text-align:center;">${h.hour}</td>
-      <td><input type="number" step="0.1" min="0" class="table-input hr-demand" data-hour="${h.hour}" value="${h.demand_kwh}" /></td>
-      <td><input type="number" step="0.1" min="0" class="table-input hr-solar" data-hour="${h.hour}" value="${h.solar_kwh}" /></td>
-      <td><input type="number" step="0.1" min="0" class="table-input hr-tariff" data-hour="${h.hour}" value="${h.tariff_bdt_per_kwh}" /></td>
+      <td style="text-align:center; font-weight:600; color:var(--text-secondary);">${h.hour}</td>
+      <td><input type="number" step="0.1" min="0" class="table-input hr-demand" data-hour="${h.hour}" value="${h.demand_kwh}" aria-label="Hour ${h.hour} demand" /></td>
+      <td><input type="number" step="0.1" min="0" class="table-input hr-solar" data-hour="${h.hour}" value="${h.solar_kwh}" aria-label="Hour ${h.hour} solar" /></td>
+      <td><input type="number" step="0.1" min="0" class="table-input hr-tariff" data-hour="${h.hour}" value="${h.tariff_bdt_per_kwh}" aria-label="Hour ${h.hour} tariff" /></td>
     `;
     hoursTableBody.appendChild(tr);
   });
 }
 
-// Build Request Payload from UI
+// Request Payload Construction
 function buildRequestPayload() {
   const notes = Array.from(document.querySelectorAll(".note-input"))
     .map(input => input.value.trim())
@@ -187,14 +233,14 @@ function buildRequestPayload() {
   };
 
   return {
-    scenario_id: scenarioIdInput.value.trim() || "DEMO-SCENARIO",
+    scenario_id: scenarioIdInput.value.trim() || "SCENARIO-01",
     operator_notes: notes,
     hours: hours,
     battery: battery
   };
 }
 
-// Execute Optimization Call
+// Submit Optimization
 async function runOptimization() {
   hideError();
   const base = getApiBase();
@@ -206,7 +252,7 @@ async function runOptimization() {
   }
 
   optimizeBtn.disabled = true;
-  optimizeBtn.innerHTML = `<span class="loading-spinner"></span> Optimizing...`;
+  optimizeBtn.innerHTML = `<span class="inline-spinner"></span> Computing...`;
 
   try {
     const res = await fetch(`${base}/optimize-energy`, {
@@ -220,7 +266,7 @@ async function runOptimization() {
 
     if (!res.ok) {
       showError(
-        `Backend Error HTTP ${res.status}: ${data?.error?.code || "ERROR"}`,
+        `Backend Error HTTP ${res.status}: ${data?.error?.code || "DISPATCH_ERROR"}`,
         data?.error?.message || JSON.stringify(data)
       );
       renderJsonInspector();
@@ -229,55 +275,53 @@ async function runOptimization() {
 
     renderResults(data);
   } catch (err) {
-    showError("Network / Connection Failure", `Failed to contact ${base}/optimize-energy: ${err.message}`);
+    showError("Network / Server Unavailable", `Failed to communicate with ${base}/optimize-energy: ${err.message}`);
     lastResponse = { error: { code: "NETWORK_ERROR", message: err.message } };
   } finally {
     optimizeBtn.disabled = false;
-    optimizeBtn.innerHTML = `<span>⚡</span> Run Energy Optimization`;
+    optimizeBtn.innerHTML = `Compute Optimal Dispatch`;
     renderJsonInspector();
   }
 }
 
-// Render Results
+// Results Presentation
 function renderResults(data) {
   // KPIs
-  kpiCost.textContent = `${Number(data.total_cost_bdt).toFixed(2)} BDT`;
-  kpiGrid.textContent = `${Number(data.total_grid_kwh).toFixed(2)} kWh`;
-  kpiPeak.textContent = `${Number(data.peak_grid_kwh).toFixed(2)} kWh`;
-  planSummaryText.textContent = data.plan_summary || "24-hour cost-optimal plan computed successfully.";
+  kpiCost.textContent = Number(data.total_cost_bdt).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  kpiGrid.textContent = Number(data.total_grid_kwh).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  kpiPeak.textContent = Number(data.peak_grid_kwh).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  planSummaryText.textContent = data.plan_summary || "24-hour cost-optimal schedule computed and replayed successfully.";
 
   // Directives
   directivesList.innerHTML = "";
   if (data.directive_interpretation && data.directive_interpretation.length > 0) {
     data.directive_interpretation.forEach(d => {
-      const card = document.createElement("div");
-      card.className = `directive-card ${d.applies ? "" : "noop"}`;
-      card.innerHTML = `
-        <div class="directive-header">
-          <span class="directive-type">[Note #${d.note_index}] ${d.directive_type}</span>
-          <span class="directive-applies ${d.applies ? "applies-true" : "applies-false"}">
-            ${d.applies ? "APPLIES" : "NO-OP"}
-          </span>
+      const tile = document.createElement("div");
+      tile.className = `directive-tile ${d.applies ? "" : "noop"}`;
+      tile.innerHTML = `
+        <div class="directive-meta">
+          <span class="directive-name">[Note #${d.note_index}] ${d.directive_type}</span>
+          <span class="badge-tag ${d.applies ? "badge-applies" : "badge-noop"}">${d.applies ? "ACTIVE" : "NO-OP"}</span>
         </div>
-        <div class="directive-explanation">${escapeHtml(d.explanation || "")}</div>
-        ${d.structured_adjustment ? `<div class="directive-details">Adjustment: ${JSON.stringify(d.structured_adjustment)}</div>` : ""}
+        <div class="directive-body">${escapeHtml(d.explanation || "")}</div>
+        ${d.structured_adjustment ? `<div class="directive-spec">${escapeHtml(JSON.stringify(d.structured_adjustment))}</div>` : ""}
       `;
-      directivesList.appendChild(card);
+      directivesList.appendChild(tile);
     });
   } else {
-    directivesList.innerHTML = `<div style="color:var(--text-muted); font-size:0.85rem;">No directives interpreted.</div>`;
+    directivesList.innerHTML = `<div style="color:var(--text-tertiary); font-size:0.75rem;">No directives interpreted.</div>`;
   }
 
-  // Results Table
+  // Hourly plan table
   resultsTableBody.innerHTML = "";
   if (data.hourly_plan) {
     data.hourly_plan.forEach(item => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td style="font-weight:600; text-align:center;">${item.hour}</td>
+        <td style="text-align:center; font-weight:600; color:var(--text-secondary);">${item.hour}</td>
         <td>${Number(item.grid_kwh).toFixed(2)}</td>
         <td>${Number(item.solar_used_kwh).toFixed(2)}</td>
-        <td><span class="badge-action action-${item.battery_action}">${item.battery_action}</span></td>
+        <td><span class="action-pill ${item.battery_action}">${item.battery_action}</span></td>
         <td>${Number(item.battery_kwh).toFixed(2)}</td>
         <td>${Number(item.battery_energy_after_kwh).toFixed(2)}</td>
       `;
@@ -285,22 +329,20 @@ function renderResults(data) {
     });
   }
 
-  // Render Visual Charts
+  // Visual Multi-Axis Charts
   renderCharts(data, lastRequest);
 }
 
-// Charts
+// Chart Visualization
 function renderCharts(response, request) {
   const hours = response.hourly_plan.map(p => `H${p.hour}`);
   const gridData = response.hourly_plan.map(p => p.grid_kwh);
   const solarUsedData = response.hourly_plan.map(p => p.solar_used_kwh);
   const batteryFlow = response.hourly_plan.map(p => (p.battery_action === "discharge" ? p.battery_kwh : 0));
-  const batteryCharge = response.hourly_plan.map(p => (p.battery_action === "charge" ? p.battery_kwh : 0));
   const demandData = request.hours.map(h => h.demand_kwh);
   const batteryEnergy = response.hourly_plan.map(p => p.battery_energy_after_kwh);
   const tariffData = request.hours.map(h => h.tariff_bdt_per_kwh);
 
-  // Destroy previous charts if existing
   if (energyChart) energyChart.destroy();
   if (batteryChart) batteryChart.destroy();
 
@@ -311,28 +353,28 @@ function renderCharts(response, request) {
       labels: hours,
       datasets: [
         {
-          label: "Solar Used (kWh)",
+          label: "Solar Used",
           data: solarUsedData,
-          backgroundColor: "rgba(6, 182, 212, 0.75)",
+          backgroundColor: "rgba(6, 182, 212, 0.8)",
           stack: "Supply"
         },
         {
-          label: "Grid Import (kWh)",
+          label: "Grid Import",
           data: gridData,
-          backgroundColor: "rgba(56, 189, 248, 0.75)",
+          backgroundColor: "rgba(59, 130, 246, 0.8)",
           stack: "Supply"
         },
         {
-          label: "Battery Discharge (kWh)",
+          label: "Battery Discharge",
           data: batteryFlow,
-          backgroundColor: "rgba(245, 158, 11, 0.75)",
+          backgroundColor: "rgba(245, 158, 11, 0.8)",
           stack: "Supply"
         },
         {
-          label: "Demand (kWh)",
+          label: "Demand",
           data: demandData,
           type: "line",
-          borderColor: "#f43f5e",
+          borderColor: "#ef4444",
           borderWidth: 2,
           pointRadius: 2,
           fill: false
@@ -343,12 +385,10 @@ function renderCharts(response, request) {
       responsive: true,
       maintainAspectRatio: false,
       scales: {
-        x: { grid: { color: "rgba(51, 65, 85, 0.4)" }, ticks: { color: "#94a3b8" } },
-        y: { grid: { color: "rgba(51, 65, 85, 0.4)" }, ticks: { color: "#94a3b8" }, title: { display: true, text: "kWh", color: "#94a3b8" } }
+        x: { grid: { color: "rgba(31, 41, 61, 0.5)" }, ticks: { color: "#64748b", font: { size: 10 } } },
+        y: { grid: { color: "rgba(31, 41, 61, 0.5)" }, ticks: { color: "#64748b", font: { size: 10 } }, title: { display: true, text: "kWh", color: "#64748b", font: { size: 10 } } }
       },
-      plugins: {
-        legend: { display: false }
-      }
+      plugins: { legend: { display: false } }
     }
   });
 
@@ -359,21 +399,21 @@ function renderCharts(response, request) {
       labels: hours,
       datasets: [
         {
-          label: "Battery Energy (kWh)",
+          label: "Battery Energy",
           data: batteryEnergy,
           borderColor: "#10b981",
-          backgroundColor: "rgba(16, 185, 129, 0.15)",
+          backgroundColor: "rgba(16, 185, 129, 0.12)",
           borderWidth: 2,
           fill: true,
-          pointRadius: 3,
+          pointRadius: 2.5,
           yAxisID: "y"
         },
         {
-          label: "Tariff (BDT/kWh)",
+          label: "Tariff",
           data: tariffData,
-          borderColor: "#a855f7",
+          borderColor: "#8b5cf6",
           borderWidth: 1.5,
-          borderDash: [4, 4],
+          borderDash: [3, 3],
           fill: false,
           pointRadius: 2,
           yAxisID: "y1"
@@ -384,30 +424,28 @@ function renderCharts(response, request) {
       responsive: true,
       maintainAspectRatio: false,
       scales: {
-        x: { grid: { color: "rgba(51, 65, 85, 0.4)" }, ticks: { color: "#94a3b8" } },
+        x: { grid: { color: "rgba(31, 41, 61, 0.5)" }, ticks: { color: "#64748b", font: { size: 10 } } },
         y: {
-          grid: { color: "rgba(51, 65, 85, 0.4)" },
-          ticks: { color: "#10b981" },
-          title: { display: true, text: "Battery (kWh)", color: "#10b981" }
+          grid: { color: "rgba(31, 41, 61, 0.5)" },
+          ticks: { color: "#10b981", font: { size: 10 } },
+          title: { display: true, text: "Battery kWh", color: "#10b981", font: { size: 10 } }
         },
         y1: {
           position: "right",
           grid: { display: false },
-          ticks: { color: "#a855f7" },
-          title: { display: true, text: "BDT/kWh", color: "#a855f7" }
+          ticks: { color: "#8b5cf6", font: { size: 10 } },
+          title: { display: true, text: "BDT/kWh", color: "#8b5cf6", font: { size: 10 } }
         }
       },
-      plugins: {
-        legend: { display: false }
-      }
+      plugins: { legend: { display: false } }
     }
   });
 }
 
-// JSON Inspector
+// JSON Inspector & Diagnostics
 function renderJsonInspector() {
   const content = activeTab === "response" ? lastResponse : lastRequest;
-  jsonInspector.textContent = content ? JSON.stringify(content, null, 2) : "// No data yet. Run an optimization to inspect.";
+  jsonInspector.textContent = content ? JSON.stringify(content, null, 2) : "// Awaiting scenario execution...";
 }
 
 function showError(title, msg) {
@@ -424,7 +462,7 @@ function escapeHtml(str) {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-// Event Listeners
+// Event Bindings
 function setupEventListeners() {
   checkHealthBtn.addEventListener("click", checkHealth);
 
@@ -435,6 +473,32 @@ function setupEventListeners() {
     currentScenario = JSON.parse(JSON.stringify(sample.input));
     renderInputs();
     hideError();
+  });
+
+  presetFlatBtn.addEventListener("click", () => {
+    currentScenario.hours = generateFlatProfile();
+    renderHoursTable();
+  });
+
+  presetPeakBtn.addEventListener("click", () => {
+    currentScenario.hours = generateCampusProfile();
+    renderHoursTable();
+  });
+
+  presetZeroBtn.addEventListener("click", () => {
+    currentScenario.hours = generateZeroProfile();
+    renderHoursTable();
+  });
+
+  worstCaseBtn.addEventListener("click", () => {
+    currentScenario.hours = generateWorstCaseProfile();
+    currentScenario.operator_notes = [
+      "The charging circuit will be unavailable from 2 PM until 6 PM.",
+      "The feeder is operating under a 200 kWh transformer limit from 6 PM to 10 PM."
+    ];
+    currentScenario.battery.max_charge_kwh_per_hour = 30.0;
+    currentScenario.battery.max_discharge_kwh_per_hour = 30.0;
+    renderInputs();
   });
 
   addNoteBtn.addEventListener("click", () => {
@@ -466,14 +530,18 @@ function setupEventListeners() {
   tabResponse.addEventListener("click", () => {
     activeTab = "response";
     tabResponse.classList.add("active");
+    tabResponse.setAttribute("aria-selected", "true");
     tabRequest.classList.remove("active");
+    tabRequest.setAttribute("aria-selected", "false");
     renderJsonInspector();
   });
 
   tabRequest.addEventListener("click", () => {
     activeTab = "request";
     tabRequest.classList.add("active");
+    tabRequest.setAttribute("aria-selected", "true");
     tabResponse.classList.remove("active");
+    tabResponse.setAttribute("aria-selected", "false");
     renderJsonInspector();
   });
 
@@ -481,7 +549,7 @@ function setupEventListeners() {
     const text = jsonInspector.textContent;
     navigator.clipboard.writeText(text).then(() => {
       copyJsonBtn.textContent = "Copied!";
-      setTimeout(() => (copyJsonBtn.textContent = "Copy JSON"), 2000);
+      setTimeout(() => (copyJsonBtn.textContent = "Copy"), 2000);
     });
   });
 

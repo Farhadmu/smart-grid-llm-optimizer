@@ -3,100 +3,136 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GridWise — Smart Campus Energy Optimizer</title>
+  <title>GridWise Operations — Campus Energy Dispatch</title>
+  <meta name="description" content="GridWise LLM-Assisted Smart Campus Energy Optimizer Console">
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
+  <a href="#mainContent" class="skip-to-content">Skip to main content</a>
 
-  <!-- Top Navigation / Server Configuration -->
-  <header>
-    <div class="brand-title">
-      <span>⚡ GridWise</span>
-      <span class="brand-badge">Demo Dashboard</span>
+  <!-- Header Navigation -->
+  <header role="banner">
+    <div class="brand-section">
+      <div class="brand-logo" aria-label="GridWise Platform">
+        <span>GridWise</span>
+      </div>
+      <span class="brand-badge">Microgrid Operations</span>
     </div>
 
-    <div class="server-config">
-      <input type="text" id="apiBaseInput" class="server-input" value="http://127.0.0.1:8000" placeholder="Backend URL" title="Backend base URL" />
-      <button id="checkHealthBtn" class="btn btn-secondary">Check Health</button>
-      <div class="status-pill">
-        <span id="statusDot" class="status-dot checking"></span>
+    <div class="header-controls">
+      <div class="control-input-group">
+        <label for="apiBaseInput" class="form-label" style="margin:0; font-size:0.7rem;">Endpoint:</label>
+        <input 
+          type="text" 
+          id="apiBaseInput" 
+          class="server-input" 
+          value="http://127.0.0.1:8000" 
+          aria-label="Backend API Endpoint URL" 
+        />
+        <button id="checkHealthBtn" class="btn btn-secondary btn-sm" aria-label="Verify Backend Health">
+          Ping
+        </button>
+      </div>
+
+      <div class="status-indicator" role="status" aria-live="polite">
+        <span id="statusDot" class="status-dot checking" aria-hidden="true"></span>
         <span id="statusText">Checking...</span>
       </div>
     </div>
   </header>
 
-  <!-- Non-Judged Architecture Disclaimer -->
-  <div class="disclaimer-banner">
-    <span>⚠️ <strong>Disclaimer:</strong> This UI dashboard is for demonstration, rehearsals, and video recordings. All directive interpretations, linear optimizations, and chronological replays are computed strictly by the backend HTTP service (<code>POST /optimize-energy</code>).</span>
-  </div>
+  <!-- Notice Banner -->
+  <aside class="notice-strip" aria-label="System Notice">
+    <div>
+      <strong>Disclaimer:</strong> All schedule computations, LP constraints, and LLM directive parses are strictly executed on the backend HTTP service (<code>POST /optimize-energy</code>).
+    </div>
+    <div style="font-size:0.7rem; color:var(--text-tertiary);">
+      BUP CSE Fest 2026
+    </div>
+  </aside>
 
-  <main>
-    <!-- Left Column: Inputs & Scenario Configuration -->
-    <section class="panel">
+
+  <!-- Main Grid Layout -->
+  <main id="mainContent" role="main">
+    
+    <!-- Left Column: Scenario & Profile Configuration -->
+    <section class="panel" aria-labelledby="scenarioHeading">
       <div class="panel-header">
-        <h2 class="panel-title">1. Scenario & Constraints</h2>
-        <div class="sample-selector">
-          <select id="sampleSelect" class="select-input">
-            <option value="">Loading public samples...</option>
+        <h1 id="scenarioHeading" class="panel-title">1. Scenario & Parameters</h1>
+        <div class="quick-tools">
+          <label for="sampleSelect" class="sr-only" style="display:none;">Select Sample</label>
+          <select id="sampleSelect" class="select-control" aria-label="Select public reference case">
+            <option value="">Loading reference samples...</option>
           </select>
-          <button id="loadSampleBtn" class="btn btn-secondary">Load</button>
+          <button id="loadSampleBtn" class="btn btn-secondary btn-sm">Load</button>
         </div>
       </div>
 
       <!-- Scenario ID -->
       <div class="form-group">
-        <label class="form-label" for="scenarioIdInput">Scenario ID</label>
-        <input type="text" id="scenarioIdInput" class="form-control" value="DEMO-SCENARIO-01" />
+        <label for="scenarioIdInput" class="form-label">Scenario ID</label>
+        <input type="text" id="scenarioIdInput" class="form-control" value="CAMPUS-MICROGRID-01" required />
       </div>
 
       <!-- Operator Notes -->
       <div class="form-group">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <label class="form-label">Operator Directives / Notes (1 to 3)</label>
-          <button id="addNoteBtn" class="btn btn-secondary" style="padding:0.2rem 0.5rem; font-size:0.75rem;">+ Add Note</button>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.2rem;">
+          <label class="form-label">Operator Notes (1 to 3)</label>
+          <button id="addNoteBtn" class="btn btn-secondary btn-sm" aria-label="Add another operator note">+ Add Note</button>
         </div>
-        <div id="notesContainer" class="notes-container"></div>
+        <div id="notesContainer" class="notes-container" role="group" aria-label="Operator directives list"></div>
       </div>
 
-      <!-- Battery Specifications -->
+      <!-- Battery Storage Parameters -->
       <div class="form-group">
         <label class="form-label">Battery Specifications</label>
         <div class="battery-grid">
           <div>
-            <span class="form-label" style="font-size:0.75rem;">Capacity (kWh)</span>
-            <input type="number" step="1" id="batteryCapacity" class="form-control" value="200" />
+            <label for="batteryCapacity" class="field-sublabel">Capacity (kWh)</label>
+            <input type="number" step="1" id="batteryCapacity" class="form-control" value="200" required />
           </div>
           <div>
-            <span class="form-label" style="font-size:0.75rem;">Initial (kWh)</span>
-            <input type="number" step="1" id="batteryInitial" class="form-control" value="100" />
+            <label for="batteryInitial" class="field-sublabel">Initial (kWh)</label>
+            <input type="number" step="1" id="batteryInitial" class="form-control" value="100" required />
           </div>
           <div>
-            <span class="form-label" style="font-size:0.75rem;">Minimum (kWh)</span>
-            <input type="number" step="1" id="batteryMin" class="form-control" value="20" />
+            <label for="batteryMin" class="field-sublabel">Reserve (kWh)</label>
+            <input type="number" step="1" id="batteryMin" class="form-control" value="20" required />
           </div>
           <div>
-            <span class="form-label" style="font-size:0.75rem;">Max Charge (kW)</span>
-            <input type="number" step="1" id="batteryMaxCharge" class="form-control" value="50" />
+            <label for="batteryMaxCharge" class="field-sublabel">Max Charge (kW)</label>
+            <input type="number" step="1" id="batteryMaxCharge" class="form-control" value="50" required />
           </div>
           <div>
-            <span class="form-label" style="font-size:0.75rem;">Max Discharge (kW)</span>
-            <input type="number" step="1" id="batteryMaxDischarge" class="form-control" value="50" />
+            <label for="batteryMaxDischarge" class="field-sublabel">Max Discharge (kW)</label>
+            <input type="number" step="1" id="batteryMaxDischarge" class="form-control" value="50" required />
+          </div>
+          <div>
+            <span class="field-sublabel">Quick Test</span>
+            <button id="worstCaseBtn" class="btn btn-secondary btn-sm" style="width:100%; height:30px; padding:0;">Extreme Load</button>
           </div>
         </div>
       </div>
 
       <!-- 24-Hour Profile Table -->
       <div class="form-group">
-        <label class="form-label">24-Hour Energy Profile (Demand, Solar, Tariff)</label>
-        <div class="hours-table-wrap">
+        <div class="profile-toolbar">
+          <label class="form-label" style="margin:0;">24-Hour Energy Profile</label>
+          <div class="preset-buttons">
+            <button id="presetFlatBtn" class="btn btn-secondary btn-sm" title="Apply uniform baseline">Flat</button>
+            <button id="presetPeakBtn" class="btn btn-secondary btn-sm" title="Apply typical campus daily curve">Campus</button>
+            <button id="presetZeroBtn" class="btn btn-secondary btn-sm" title="Apply zero demand edge case">Zero</button>
+          </div>
+        </div>
+        <div class="hours-table-wrap" tabindex="0" role="region" aria-label="Hourly Demand, Solar, and Tariff table">
           <table class="data-table">
             <thead>
               <tr>
-                <th style="width: 50px; text-align:center;">Hour</th>
-                <th>Demand (kWh)</th>
-                <th>Solar (kWh)</th>
-                <th>Tariff (BDT)</th>
+                <th scope="col" style="width: 44px; text-align:center;">Hr</th>
+                <th scope="col">Demand (kWh)</th>
+                <th scope="col">Solar (kWh)</th>
+                <th scope="col">Tariff (BDT)</th>
               </tr>
             </thead>
             <tbody id="hoursTableBody"></tbody>
@@ -104,124 +140,121 @@
         </div>
       </div>
 
-      <!-- Action Button -->
+      <!-- Optimization Submit -->
       <div>
-        <button id="optimizeBtn" class="btn btn-primary" style="width:100%; justify-content:center; padding:0.75rem; font-size:1rem;">
-          <span>⚡</span> Run Energy Optimization
+        <button id="optimizeBtn" class="btn btn-primary" style="width:100%; justify-content:center; padding:0.65rem 1rem; font-size:0.875rem;">
+          Compute Optimal Dispatch
         </button>
       </div>
 
       <!-- Error Envelope Alert -->
-      <div id="errorAlert" class="alert alert-danger" style="display:none;">
-        <span id="errorTitle" class="alert-title"></span>
+      <div id="errorAlert" class="alert-box alert-danger" style="display:none;" role="alert" aria-live="assertive">
+        <span id="errorTitle" class="alert-heading"></span>
         <span id="errorMessage"></span>
       </div>
     </section>
 
-    <!-- Right Column: Results, Directives & Analytics -->
-    <section class="panel">
+    <!-- Right Column: Results & Operational Analytics -->
+    <section class="panel" aria-labelledby="resultsHeading">
       <div class="panel-header">
-        <h2 class="panel-title">2. Optimal Plan & Replay Insights</h2>
+        <h2 id="resultsHeading" class="panel-title">2. Dispatch Results & Analysis</h2>
       </div>
 
       <!-- High-Level KPIs -->
-      <div class="kpi-cards">
-        <div class="kpi-card">
-          <span class="kpi-label">Total Cost</span>
-          <span id="kpiCost" class="kpi-value">—</span>
-          <span class="kpi-unit">BDT</span>
+      <div class="kpi-row" role="region" aria-label="Cost and Energy Totals">
+        <div class="kpi-tile">
+          <span class="kpi-meta">Optimized Grid Cost</span>
+          <div class="kpi-figure"><span id="kpiCost">—</span> <span class="kpi-currency">BDT</span></div>
         </div>
-        <div class="kpi-card">
-          <span class="kpi-label">Total Grid Import</span>
-          <span id="kpiGrid" class="kpi-value">—</span>
-          <span class="kpi-unit">kWh</span>
+        <div class="kpi-tile">
+          <span class="kpi-meta">Total Grid Energy</span>
+          <div class="kpi-figure"><span id="kpiGrid">—</span> <span class="kpi-currency">kWh</span></div>
         </div>
-        <div class="kpi-card">
-          <span class="kpi-label">Peak Grid Load</span>
-          <span id="kpiPeak" class="kpi-value">—</span>
-          <span class="kpi-unit">kWh</span>
+        <div class="kpi-tile">
+          <span class="kpi-meta">Peak Feeder Demand</span>
+          <div class="kpi-figure"><span id="kpiPeak">—</span> <span class="kpi-currency">kW</span></div>
         </div>
       </div>
 
-      <!-- Plan Strategy Summary -->
+      <!-- Dispatch Strategy Summary -->
       <div class="form-group">
-        <label class="form-label">Strategy Summary</label>
-        <div id="planSummaryText" class="plan-summary-box">
-          Press "Run Energy Optimization" to generate the schedule.
+        <span class="form-label">Dispatch Strategy Summary</span>
+        <div id="planSummaryText" class="summary-container" role="status" aria-live="polite">
+          System idle. Submit a scenario to compute the 24-hour cost-optimal schedule.
         </div>
       </div>
 
       <!-- Directive Interpretation Cards -->
       <div class="form-group">
-        <label class="form-label">Interpreted Directives (LLM + Guardrails)</label>
-        <div id="directivesList" class="directives-list">
-          <div style="color:var(--text-muted); font-size:0.85rem;">No optimization run yet.</div>
+        <span class="form-label">Interpreted Operating Directives</span>
+        <div id="directivesList" class="directive-cards-grid" role="region" aria-label="Interpreted directives">
+          <div style="color:var(--text-tertiary); font-size:0.75rem; padding:0.25rem 0;">No active scenario.</div>
         </div>
       </div>
 
-      <!-- Energy Flow Chart -->
-      <div class="chart-container">
-        <div class="chart-header">
-          <span class="form-label">24-Hour Energy Supply vs Demand</span>
-          <div class="chart-legend">
-            <div class="legend-item"><span class="legend-color" style="background:#06b6d4;"></span> Solar</div>
-            <div class="legend-item"><span class="legend-color" style="background:#38bdf8;"></span> Grid</div>
-            <div class="legend-item"><span class="legend-color" style="background:#f59e0b;"></span> Battery Discharge</div>
-            <div class="legend-item"><span class="legend-color" style="background:#f43f5e;"></span> Demand</div>
+      <!-- Multi-Resource Supply / Demand Chart -->
+      <div class="chart-card">
+        <div class="chart-meta">
+          <span class="chart-title">Hourly Energy Balance (Supply vs Demand)</span>
+          <div class="chart-keys" aria-hidden="true">
+            <span><span class="key-dot" style="background:#06b6d4;"></span> Solar Used</span>
+            <span><span class="key-dot" style="background:#3b82f6;"></span> Grid Import</span>
+            <span><span class="key-dot" style="background:#f59e0b;"></span> Battery Discharge</span>
+            <span><span class="key-dot" style="background:#ef4444;"></span> Demand</span>
           </div>
         </div>
-        <canvas id="energyChart"></canvas>
+        <canvas id="energyChart" role="img" aria-label="Stacked hourly energy supply bar chart with demand overlay"></canvas>
       </div>
 
-      <!-- Battery State & Tariff Chart -->
-      <div class="chart-container">
-        <div class="chart-header">
-          <span class="form-label">Battery Energy & Time-of-Use Tariff</span>
-          <div class="chart-legend">
-            <div class="legend-item"><span class="legend-color" style="background:#10b981;"></span> Stored Battery (kWh)</div>
-            <div class="legend-item"><span class="legend-color" style="background:#a855f7;"></span> Tariff (BDT/kWh)</div>
+      <!-- Battery Dynamics & Tariff Chart -->
+      <div class="chart-card">
+        <div class="chart-meta">
+          <span class="chart-title">Battery Storage Dynamics & Time-of-Use Tariffs</span>
+          <div class="chart-keys" aria-hidden="true">
+            <span><span class="key-dot" style="background:#10b981;"></span> Battery Stored (kWh)</span>
+            <span><span class="key-dot" style="background:#8b5cf6;"></span> Tariff (BDT/kWh)</span>
           </div>
         </div>
-        <canvas id="batteryChart"></canvas>
+        <canvas id="batteryChart" role="img" aria-label="Dual axis line chart showing stored battery energy and hourly tariff"></canvas>
       </div>
 
-      <!-- Emitted Plan Table -->
+      <!-- Hourly Schedule Plan Table -->
       <div class="form-group">
-        <label class="form-label">Emitted 24-Hour Hourly Schedule</label>
-        <div class="hours-table-wrap" style="max-height: 220px;">
+        <span class="form-label">Hourly Dispatch Schedule</span>
+        <div class="hours-table-wrap" style="max-height: 190px;" tabindex="0" role="region" aria-label="Hourly schedule results table">
           <table class="data-table">
             <thead>
               <tr>
-                <th style="width: 45px; text-align:center;">Hour</th>
-                <th>Grid (kWh)</th>
-                <th>Solar Used</th>
-                <th>Action</th>
-                <th>Battery (kWh)</th>
-                <th>Battery After</th>
+                <th scope="col" style="width: 44px; text-align:center;">Hr</th>
+                <th scope="col">Grid (kWh)</th>
+                <th scope="col">Solar (kWh)</th>
+                <th scope="col">Action</th>
+                <th scope="col">Flow (kWh)</th>
+                <th scope="col">State After</th>
               </tr>
             </thead>
             <tbody id="resultsTableBody">
               <tr>
-                <td colspan="6" style="text-align:center; color:var(--text-muted); padding:1rem;">No results yet.</td>
+                <td colspan="6" style="text-align:center; color:var(--text-tertiary); padding:0.75rem;">No dispatch schedule computed.</td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      <!-- JSON Inspector -->
+      <!-- Contract JSON Diagnostics -->
       <div class="form-group">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-          <div class="tabs-header">
-            <button id="tabResponse" class="tab-btn active">Response JSON</button>
-            <button id="tabRequest" class="tab-btn">Request JSON</button>
+          <div class="tab-controls" role="tablist" aria-label="Payload view tabs">
+            <button id="tabResponse" class="tab-link active" role="tab" aria-selected="true">Response Envelope</button>
+            <button id="tabRequest" class="tab-link" role="tab" aria-selected="false">Request Payload</button>
           </div>
-          <div class="inspector-actions">
-            <button id="copyJsonBtn" class="btn btn-secondary" style="padding:0.2rem 0.6rem; font-size:0.75rem;">Copy JSON</button>
-            <button id="downloadJsonBtn" class="btn btn-secondary" style="padding:0.2rem 0.6rem; font-size:0.75rem;">Download</button>
+          <div style="display:flex; gap:0.4rem;">
+            <button id="copyJsonBtn" class="btn btn-secondary btn-sm">Copy</button>
+            <button id="downloadJsonBtn" class="btn btn-secondary btn-sm">Download</button>
           </div>
         </div>
-        <div id="jsonInspector" class="json-box">// No data yet. Run an optimization to inspect.</div>
+        <pre id="jsonInspector" class="code-terminal" tabindex="0" aria-label="JSON inspector">// Awaiting scenario execution...</pre>
       </div>
     </section>
   </main>
