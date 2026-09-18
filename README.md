@@ -320,10 +320,10 @@ Response:
       "battery_energy_after_kwh": 130.0
     }
   ],
-  "total_grid_kwh": 2235.0,
-  "total_cost_bdt": 29880.0,
-  "peak_grid_kwh": 175.0,
-  "plan_summary": "24-hour cost-optimal schedule computed in 3.2ms. Active directives applied: no_charge_window. Total grid import: 2235.00 kWh, Total cost: 29880.00 BDT, Peak grid import: 175.00 kWh."
+  "total_grid_kwh": 2485.0,
+  "total_cost_bdt": 31110.0,
+  "peak_grid_kwh": 160.0,
+  "plan_summary": "24-hour cost-optimal schedule computed in 3.7ms. Active directives applied: no_charge_window. Total grid import: 2485.00 kWh, Total cost: 31110.00 BDT, Peak grid import: 160.00 kWh."
 }
 ```
 
