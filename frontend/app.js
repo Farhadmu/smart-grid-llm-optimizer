@@ -207,7 +207,7 @@ const settingsStatusMsg = document.getElementById("settingsStatusMsg");
 const DEFAULT_SETTINGS = {
   llm_provider: "gemini",
   gemini_key: "",
-  gemini_model: "gemini-2.5-flash",
+  gemini_model: "gemini-1.5-flash",
   solver_timeout: 5.0,
   request_timeout: 30.0,
   currency: "BDT",
@@ -217,7 +217,14 @@ const DEFAULT_SETTINGS = {
 function getStoredSettings() {
   try {
     const saved = localStorage.getItem("gridwise_config");
-    if (saved) return { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
+    if (saved) {
+      const cfg = { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
+      if (cfg.gemini_model && cfg.gemini_model.includes("2.5")) {
+        cfg.gemini_model = "gemini-1.5-flash";
+        saveStoredSettings(cfg);
+      }
+      return cfg;
+    }
   } catch (e) {}
   return { ...DEFAULT_SETTINGS };
 }
@@ -962,7 +969,7 @@ function setupEventListeners() {
       const newCfg = {
         llm_provider: cfgLlmProvider ? cfgLlmProvider.value : "gemini",
         gemini_key: cfgGeminiKey ? cfgGeminiKey.value.trim() : "",
-        gemini_model: cfgGeminiModel ? cfgGeminiModel.value : "gemini-2.5-flash",
+        gemini_model: cfgGeminiModel ? cfgGeminiModel.value : "gemini-1.5-flash",
         solver_timeout: parseFloat(cfgSolverTimeout ? cfgSolverTimeout.value : 5.0) || 5.0,
         request_timeout: parseFloat(cfgRequestTimeout ? cfgRequestTimeout.value : 30.0) || 30.0,
         currency: cfgCurrency ? cfgCurrency.value : "BDT",

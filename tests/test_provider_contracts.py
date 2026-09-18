@@ -44,7 +44,7 @@ class TestProviderContracts(unittest.TestCase):
 
         interpreter = GeminiInterpreter(
             api_key="mock-gemini-key-12345",
-            model="gemini-2.5-flash",
+            model="gemini-1.5-flash",
             transport=mock_transport,
         )
 
@@ -157,6 +157,53 @@ class TestProviderContracts(unittest.TestCase):
         with self.assertRaises(LLMInterpretationError) as ctx:
             interpreter.parse_model_text(json.dumps({"some_other_key": []}), notes_count=1, battery_capacity_kwh=200.0)
         self.assertIn("missing 'directive_interpretation' key", str(ctx.exception))
+
+    def test_gemini_model_normalization(self):
+        """Assert models/ prefix and legacy 2.5 names are normalized to standard identifiers."""
+        interpreter1 = GeminiInterpreter(api_key="dummy", model="gemini-2.5-flash")
+        self.assertEqual(interpreter1.model, "gemini-1.5-flash")
+
+        interpreter2 = GeminiInterpreter(api_key="dummy", model="models/gemini-1.5-pro")
+        self.assertEqual(interpreter2.model, "gemini-1.5-pro")
+
+        interpreter3 = GeminiInterpreter(api_key="dummy", model="gemini-2.5-pro")
+        self.assertEqual(interpreter3.model, "gemini-1.5-pro")
+
+    def test_gemini_404_fallback_resilience(self):
+        """Assert that an unexpected 404 automatically falls back to gemini-1.5-flash."""
+        import urllib.error
+        calls = []
+
+        def mock_transport(req: urllib.request.Request, timeout: float) -> str:
+            calls.append(req.full_url)
+            if "gemini-unknown-model" in req.full_url:
+                raise urllib.error.HTTPError(
+                    url=req.full_url, code=404, msg="Not Found", hdrs={}, fp=None
+                )
+            return json.dumps({
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {
+                                    "text": json.dumps({"directive_interpretation": []})
+                                }
+                            ]
+                        }
+                    }
+                ]
+            })
+
+        interpreter = GeminiInterpreter(
+            api_key="dummy",
+            model="gemini-unknown-model",
+            transport=mock_transport,
+        )
+        result = interpreter._call_gemini_sync("Hello")
+        self.assertIn("directive_interpretation", result)
+        self.assertEqual(len(calls), 2)
+        self.assertIn("gemini-unknown-model", calls[0])
+        self.assertIn("gemini-1.5-flash", calls[1])
 
 
 if __name__ == "__main__":

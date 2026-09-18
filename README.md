@@ -177,7 +177,7 @@ cp .env.example .env
 | `PORT` | `8000` | Port to expose (dynamically used by Docker health check) |
 | `LLM_PROVIDER` | `gemini` | Provider: `gemini`, `openai`, or `fake` |
 | `GEMINI_API_KEY` | `""` | Google Gemini API key (passed via `x-goog-api-key` header) |
-| `GEMINI_MODEL` | `gemini-2.5-flash` | Gemini model name |
+| `GEMINI_MODEL` | `gemini-1.5-flash` | Gemini model name |
 | `OPENAI_API_KEY` | `""` | OpenAI API key (when using openai) |
 | `OPENAI_BASE_URL`| `https://api.openai.com/v1` | OpenAI API base URL |
 | `OPENAI_MODEL` | `gpt-4o-mini` | OpenAI model name |
@@ -385,7 +385,7 @@ The repository includes a root [render.yaml](file:///Users/apple/Downloads/BUP_C
 3. Add Environment Variables:
    - `APP_ENV`: `production`
    - `LLM_PROVIDER`: `gemini`
-   - `GEMINI_MODEL`: `gemini-2.5-flash`
+   - `GEMINI_MODEL`: `gemini-1.5-flash`
    - `GEMINI_API_KEY`: `<Your Gemini API Key>`
    - `REQUEST_TIMEOUT_SECONDS`: `30.0`
    - `LLM_TIMEOUT_SECONDS`: `20.0`
@@ -448,7 +448,7 @@ Open `http://localhost:3000` in your browser. Configure the backend URL (default
 |---|---|---|
 | **Clean clone/pull & setup** | Spec §17 | `README.md` §7 (`git clone`, `pip install -r requirements.txt`) |
 | **Required environment variables** | Spec §16 | `README.md` §7.3 & `.env.example` (zero hardcoded secrets) |
-| **Model/provider identifier** | Spec §5.1, §16 | `README.md` §7.3 (`gemini-2.5-flash`, `gpt-4o-mini`, `fake`) |
+| **Model/provider identifier** | Spec §5.1, §16 | `README.md` §7.3 (`gemini-1.5-flash`, `gpt-4o-mini`, `fake`) |
 | **Explicit LLM role in note interpretation** | Spec §3.1, §5.1 | `README.md` §3.1 (translates prose to 6 strict directives) |
 | **Guardrail & optimizer explanation** | Spec §5.3, §7.1 | `README.md` §3.3 & §5 (HiGHS LP, signed battery flow, replay) |
 | **Exact start command** | Spec §14, §17 | `README.md` §7.4 (`uvicorn app.main:app --host 0.0.0.0 --port 8000`) |

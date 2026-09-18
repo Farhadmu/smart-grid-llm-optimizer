@@ -2,7 +2,7 @@
 
 import os
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
@@ -56,7 +56,7 @@ class Settings(BaseModel):
         default_factory=lambda: os.getenv("LLM_PROVIDER", "gemini").lower()  # type: ignore
     )
     gemini_api_key: str = Field(default_factory=lambda: os.getenv("GEMINI_API_KEY", ""))
-    gemini_model: str = Field(default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-2.5-flash"))
+    gemini_model: str = Field(default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-1.5-flash"))
 
 
     openai_api_key: str = Field(default_factory=lambda: os.getenv("OPENAI_API_KEY", ""))
@@ -103,6 +103,16 @@ class Settings(BaseModel):
         if v <= 0.0:
             raise ValueError(f"{info.field_name} must be strictly positive, got {v}")
         return v
+
+    @field_validator("gemini_model", mode="before")
+    @classmethod
+    def validate_gemini_model(cls, v: Any) -> str:
+        cleaned = str(v or "gemini-1.5-flash").strip()
+        if cleaned.startswith("models/"):
+            cleaned = cleaned.removeprefix("models/")
+        if "2.5" in cleaned:
+            cleaned = cleaned.replace("2.5", "1.5")
+        return cleaned or "gemini-1.5-flash"
 
     @field_validator("llm_max_retries")
     @classmethod
