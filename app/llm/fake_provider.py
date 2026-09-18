@@ -187,6 +187,7 @@ class FakeInterpreter(LLMInterpreter):
                     w in n_lower
                     for w in [
                         "must not exceed",
+                        "never draw more than",
                         "transformer limit",
                         "stay at or below",
                         "grid intake",
@@ -196,6 +197,7 @@ class FakeInterpreter(LLMInterpreter):
                 )
                 and not is_noop
             )
+
 
             hours = _parse_time_window(note) or [12, 13]
 

@@ -131,6 +131,62 @@ class TestGuardrails(unittest.TestCase):
         with self.assertRaises(GuardrailValidationError):
             validate_directive_interpretations(raw_nan, 1, 200.0)
 
+    def test_boolean_note_index_rejected(self):
+        # note_index is True (boolean)
+        raw = [{"note_index": True, "applies": False, "directive_type": "no_op", "structured_adjustment": None, "explanation": "x"}]
+        with self.assertRaises(GuardrailValidationError) as ctx:
+            validate_directive_interpretations(raw, 1, 200.0)
+        self.assertIn("not boolean", str(ctx.exception).lower())
+
+    def test_missing_or_empty_explanation_rejected(self):
+        # missing explanation
+        raw_missing = [{"note_index": 0, "applies": False, "directive_type": "no_op", "structured_adjustment": None}]
+        with self.assertRaises(GuardrailValidationError):
+            validate_directive_interpretations(raw_missing, 1, 200.0)
+
+        # empty / whitespace explanation
+        raw_empty = [{"note_index": 0, "applies": False, "directive_type": "no_op", "structured_adjustment": None, "explanation": "   "}]
+        with self.assertRaises(GuardrailValidationError) as ctx:
+            validate_directive_interpretations(raw_empty, 1, 200.0)
+        self.assertIn("non-empty string", str(ctx.exception).lower())
+
+    def test_extra_top_level_fields_rejected(self):
+        raw = [{
+            "note_index": 0,
+            "applies": False,
+            "directive_type": "no_op",
+            "structured_adjustment": None,
+            "explanation": "Valid",
+            "unexpected_field": "injected",
+        }]
+        with self.assertRaises(GuardrailValidationError) as ctx:
+            validate_directive_interpretations(raw, 1, 200.0)
+        self.assertIn("unexpected extra field", str(ctx.exception).lower())
+
+    def test_extra_adjustment_keys_rejected(self):
+        raw = [{
+            "note_index": 0,
+            "applies": True,
+            "directive_type": "no_charge_window",
+            "structured_adjustment": {"hours": [14, 15], "extra_key": 123},
+            "explanation": "Valid",
+        }]
+        with self.assertRaises(GuardrailValidationError) as ctx:
+            validate_directive_interpretations(raw, 1, 200.0)
+        self.assertIn("only 'hours'", str(ctx.exception).lower())
+
+    def test_unsorted_hours_rejected(self):
+        raw = [{
+            "note_index": 0,
+            "applies": True,
+            "directive_type": "no_charge_window",
+            "structured_adjustment": {"hours": [15, 14]},
+            "explanation": "Unsorted hours",
+        }]
+        with self.assertRaises(GuardrailValidationError) as ctx:
+            validate_directive_interpretations(raw, 1, 200.0)
+        self.assertIn("sorted ascending", str(ctx.exception).lower())
+
 
 if __name__ == "__main__":
     unittest.main()

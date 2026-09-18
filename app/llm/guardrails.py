@@ -1,7 +1,7 @@
 """Deterministic guardrail validation for LLM directive interpretations."""
 
 import math
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 from app.models.schemas import DirectiveInterpretationItem, DirectiveType
 
 VALID_DIRECTIVE_TYPES = {
@@ -11,6 +11,14 @@ VALID_DIRECTIVE_TYPES = {
     "no_discharge_window",
     "max_grid_window",
     "no_op",
+}
+
+ALLOWED_TOP_LEVEL_KEYS = {
+    "note_index",
+    "applies",
+    "directive_type",
+    "structured_adjustment",
+    "explanation",
 }
 
 
@@ -26,17 +34,7 @@ def validate_directive_interpretations(
 ) -> List[DirectiveInterpretationItem]:
     """
     Deterministically validate and normalize structured LLM interpretations.
-
-    Checks:
-    1. Exact count matches input notes.
-    2. Note-index bijection and order (0..N-1).
-    3. Directive type is one of the 6 allowed enums.
-    4. `applies` boolean semantics (False iff no_op).
-    5. Structured adjustment shape and exact keys per directive.
-    6. Hours list validity (unique, 0..23, non-empty, sorted ascending).
-    7. Factor range [0.0, 1.0] for solar_reduction.
-    8. Minimum reserve [0.0, capacity_kwh] for minimum_battery_reserve.
-    9. Max grid cap >= 0.0 for max_grid_window.
+    Enforces strict typing, exact keys, range bounds, and sorted hours.
     """
     if not isinstance(raw_items, list):
         raise GuardrailValidationError(f"Expected list of interpretations, got {type(raw_items).__name__}")
@@ -52,21 +50,45 @@ def validate_directive_interpretations(
         if not isinstance(item, dict):
             raise GuardrailValidationError(f"Interpretation item {expected_idx} is not an object")
 
-        # 1. note_index
-        note_idx = item.get("note_index")
-        if note_idx != expected_idx:
+        # 1. Top-level keys: exact required set
+        item_keys = set(item.keys())
+        extra_keys = item_keys - ALLOWED_TOP_LEVEL_KEYS
+        if extra_keys:
             raise GuardrailValidationError(
-                f"Note index out of order or invalid: expected {expected_idx}, got {note_idx}"
+                f"Item {expected_idx}: unexpected extra field(s) {extra_keys}"
+            )
+        missing_keys = ALLOWED_TOP_LEVEL_KEYS - item_keys
+        if missing_keys:
+            raise GuardrailValidationError(
+                f"Item {expected_idx}: missing required field(s) {missing_keys}"
             )
 
-        # 2. directive_type
+        # 2. note_index: must be an actual integer (not boolean)
+        note_idx = item.get("note_index")
+        if isinstance(note_idx, bool) or not isinstance(note_idx, int):
+            raise GuardrailValidationError(
+                f"Item {expected_idx}: note_index must be an integer (not boolean), got {type(note_idx).__name__}"
+            )
+        if note_idx != expected_idx:
+            raise GuardrailValidationError(
+                f"Item {expected_idx}: note index out of order or invalid: expected {expected_idx}, got {note_idx}"
+            )
+
+        # 3. explanation: must be a present, non-empty string
+        explanation = item.get("explanation")
+        if not isinstance(explanation, str) or not explanation.strip():
+            raise GuardrailValidationError(
+                f"Item {expected_idx}: explanation must be a present, non-empty string"
+            )
+
+        # 4. directive_type
         dtype = item.get("directive_type")
         if dtype not in VALID_DIRECTIVE_TYPES:
             raise GuardrailValidationError(
                 f"Item {expected_idx}: unsupported directive_type '{dtype}'"
             )
 
-        # 3. applies boolean
+        # 5. applies boolean
         applies = item.get("applies")
         if not isinstance(applies, bool):
             raise GuardrailValidationError(f"Item {expected_idx}: applies must be boolean")
@@ -80,11 +102,8 @@ def validate_directive_interpretations(
                 f"Item {expected_idx}: applies must be True for active directive '{dtype}'"
             )
 
-        # 4. structured_adjustment shape
+        # 6. structured_adjustment shape
         adj = item.get("structured_adjustment")
-        explanation = item.get("explanation", "")
-        if not isinstance(explanation, str) or not explanation.strip():
-            explanation = f"Interpreted directive {dtype}"
 
         if dtype == "no_op":
             if adj is not None:
@@ -104,10 +123,10 @@ def validate_directive_interpretations(
 
         if not isinstance(adj, dict):
             raise GuardrailValidationError(
-                f"Item {expected_idx}: structured_adjustment must be an object for '{dtype}', got {type(adj).__name__}"
+                f"Item {expected_idx}: structured_adjustment must be an object for active directive '{dtype}', got {type(adj).__name__}"
             )
 
-        # 5. Hours validation
+        # 7. Hours validation
         raw_hours = adj.get("hours")
         if not isinstance(raw_hours, list) or len(raw_hours) == 0:
             raise GuardrailValidationError(
@@ -127,10 +146,14 @@ def validate_directive_interpretations(
         if len(cleaned_hours) != len(set(cleaned_hours)):
             raise GuardrailValidationError(f"Item {expected_idx}: duplicate hours found in {cleaned_hours}")
 
-        sorted_hours = sorted(cleaned_hours)
+        # Strictly require ascending order so repair attempt can fix disordered output
+        if cleaned_hours != sorted(cleaned_hours):
+            raise GuardrailValidationError(
+                f"Item {expected_idx}: hours must be sorted ascending, got {cleaned_hours}"
+            )
 
-        # 6. Directive-specific fields
-        clean_adj: Dict[str, Any] = {"hours": sorted_hours}
+        # 8. Directive-specific exact keys & bounds
+        clean_adj: Dict[str, Any] = {"hours": cleaned_hours}
 
         if dtype == "solar_reduction":
             allowed_keys = {"hours", "factor"}

@@ -152,8 +152,21 @@ class TestOptimizer(unittest.TestCase):
             )
         ]
         compiled = compile_scenario_and_directives("TEST", hours, battery, directives)
-        with self.assertRaises(SolverError):
+        with self.assertRaises(SolverError) as ctx:
             solve_energy_optimization(compiled)
+        self.assertEqual(ctx.exception.code, "OPTIMIZATION_INFEASIBLE")
+
+    def test_solver_timeout_handling(self):
+        """Verify that solver honors solver_timeout_seconds and raises OPTIMIZATION_TIMEOUT."""
+        hours = _make_scenario(demand_val=100.0, solar_val=20.0)
+        battery = _make_battery()
+        compiled = compile_scenario_and_directives("TEST", hours, battery, [])
+        # Set an impossibly small timeout (e.g. 1e-9s) to trigger solver timeout
+        compiled.solver_timeout_seconds = 1e-9
+        with self.assertRaises(SolverError) as ctx:
+            solve_energy_optimization(compiled)
+        self.assertEqual(ctx.exception.code, "OPTIMIZATION_TIMEOUT")
+
 
 
 if __name__ == "__main__":

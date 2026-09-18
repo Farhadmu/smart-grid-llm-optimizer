@@ -1,5 +1,6 @@
 """Full pipeline orchestrator coordinating LLM interpretation, compilation, optimization, and replay."""
 
+import asyncio
 import time
 import uuid
 from typing import List, Optional
@@ -111,22 +112,38 @@ async def process_energy_optimization(
         hours_input=request.hours,
         battery_input=request.battery,
         directives=directives,
+        solver_timeout_seconds=settings.solver_timeout_seconds,
     )
 
-    # 3. Solve Linear Program
+    # 3. Solve Linear Program (executed in thread pool with timeout to prevent event loop blocking)
     t_solver_start = time.time()
     try:
-        solution = solve_energy_optimization(compiled)
+        solution = await asyncio.wait_for(
+            asyncio.to_thread(solve_energy_optimization, compiled),
+            timeout=settings.solver_timeout_seconds + 1.0,
+        )
+    except asyncio.TimeoutError:
+        logger.error(
+            "solver_timeout_exceeded",
+            correlation_id=corr_id,
+            scenario_id=scenario_id,
+        )
+        raise OrchestrationError(
+            code="OPTIMIZATION_TIMEOUT",
+            message=f"Energy optimization exceeded solver timeout of {settings.solver_timeout_seconds}s",
+            status_code=500,
+        )
     except SolverError as e:
         logger.error(
             "solver_failed",
             correlation_id=corr_id,
             scenario_id=scenario_id,
             error=str(e),
+            code=e.code,
         )
         raise OrchestrationError(
-            code="OPTIMIZATION_INFEASIBLE",
-            message="Energy schedule optimization was infeasible under specified constraints",
+            code=e.code,
+            message=f"Energy schedule optimization failed: {str(e)}",
             status_code=500,
         )
     t_solver_duration = (time.time() - t_solver_start) * 1000

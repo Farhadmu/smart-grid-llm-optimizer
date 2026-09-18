@@ -12,6 +12,7 @@ def compile_scenario_and_directives(
     hours_input: List[HourInput],
     battery_input: BatteryInput,
     directives: List[DirectiveInterpretationItem],
+    solver_timeout_seconds: float = 5.0,
 ) -> CompiledScenario:
     """
     Compile base scenario inputs and validated directives into per-hour numerical arrays.
@@ -89,4 +90,5 @@ def compile_scenario_and_directives(
         grid_cap=grid_cap,
         max_charge_rate=battery_input.max_charge_kwh_per_hour,
         max_discharge_rate=battery_input.max_discharge_kwh_per_hour,
+        solver_timeout_seconds=solver_timeout_seconds,
     )

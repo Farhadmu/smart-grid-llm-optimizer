@@ -27,6 +27,7 @@ def create_llm_interpreter(settings: Settings) -> LLMInterpreter:
             base_url=settings.openai_base_url,
             model=settings.openai_model,
             timeout_seconds=settings.llm_timeout_seconds,
+            strict_schema=settings.openai_strict_schema,
         )
 
     raise ValueError(f"Unknown LLM provider '{settings.llm_provider}' configured")

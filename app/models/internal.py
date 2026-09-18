@@ -22,6 +22,7 @@ class CompiledScenario:
     grid_cap: np.ndarray          # (24,) float (np.inf where uncapped)
     max_charge_rate: float
     max_discharge_rate: float
+    solver_timeout_seconds: float = 5.0
 
 
 @dataclass

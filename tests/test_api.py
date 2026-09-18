@@ -136,6 +136,29 @@ class TestAPIEndpoints(unittest.TestCase):
         self.assertIn("error", body)
         self.assertEqual(body["error"]["code"], "SEMANTIC_VALIDATION_ERROR")
 
+    def test_infeasible_scenario_returns_controlled_error(self):
+        # Infeasible grid cap
+        payload = {
+            "scenario_id": "API-TEST-INFEASIBLE",
+            "operator_notes": ["Never draw more than 10 kWh from the grid between 10 AM and 11 AM."],
+            "hours": [
+                {"hour": h, "demand_kwh": 100.0, "solar_kwh": 0.0, "tariff_bdt_per_kwh": 10.0}
+                for h in range(24)
+            ],
+            "battery": {
+                "capacity_kwh": 200.0,
+                "initial_energy_kwh": 100.0,
+                "minimum_energy_kwh": 20.0,
+                "max_charge_kwh_per_hour": 0.0,
+                "max_discharge_kwh_per_hour": 0.0,
+            },
+        }
+        status, headers, body = asyncio.run(asgi_call("POST", "/optimize-energy", body=payload))
+        self.assertEqual(status, 500)
+        self.assertIn("error", body)
+        self.assertEqual(body["error"]["code"], "OPTIMIZATION_INFEASIBLE")
+
+
 
 if __name__ == "__main__":
     unittest.main()

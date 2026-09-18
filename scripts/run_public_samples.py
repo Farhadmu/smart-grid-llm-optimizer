@@ -11,6 +11,9 @@ from typing import Tuple
 ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
+os.environ["APP_ENV"] = "test"
+os.environ["LLM_PROVIDER"] = "fake"
+
 from app.config import settings
 from app.llm.fake_provider import FakeInterpreter
 from app.models.schemas import OptimizeEnergyRequest

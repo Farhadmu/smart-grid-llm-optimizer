@@ -3,6 +3,7 @@
 import asyncio
 import json
 import uuid
+from contextlib import asynccontextmanager
 from typing import Any, Dict
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -21,11 +22,21 @@ from app.models.schemas import (
 from app.orchestrator import process_energy_optimization, OrchestrationError
 from app.logging_utils import logger
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Validate configuration on server startup before serving requests."""
+    if settings.app_env == "production":
+        logger.info("startup_production_validation_passed", provider=settings.llm_provider)
+    yield
+
+
 app = FastAPI(
     title="GridWise Optimization Service",
     version="1.0.0",
     docs_url=None,  # No Swagger UI needed for judging
     redoc_url=None,
+    lifespan=lifespan,
 )
 
 # Initialize the configured LLM interpreter

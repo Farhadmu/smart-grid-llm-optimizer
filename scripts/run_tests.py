@@ -9,7 +9,8 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
-# Ensure LLM_PROVIDER is fake for deterministic tests
+# Ensure test environment and fake provider for deterministic testing
+os.environ["APP_ENV"] = "test"
 os.environ["LLM_PROVIDER"] = "fake"
 
 

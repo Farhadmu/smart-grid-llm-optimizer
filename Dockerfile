@@ -7,8 +7,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+COPY requirements.lock .
+RUN pip install --no-cache-dir --user -r requirements.lock
 
 # Final runtime image
 FROM python:3.11-slim AS runner
@@ -37,10 +37,12 @@ COPY --chown=appuser:appuser scripts/ scripts/
 
 USER appuser
 
+ENV HOST=0.0.0.0
+ENV PORT=8000
 EXPOSE 8000
 
-# Health check verifies GET /health readiness within 60s of startup
+# Health check dynamically verifies GET /health on configured port
 HEALTHCHECK --interval=5s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD sh -c 'curl -f http://localhost:${PORT:-8000}/health || exit 1'
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "uvicorn app.main:app --host ${HOST:-0.0.0.0} --port ${PORT:-8000}"]

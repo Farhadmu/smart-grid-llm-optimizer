@@ -12,7 +12,10 @@ EPSILON = 1e-7
 
 class SolverError(Exception):
     """Raised when the optimization problem is infeasible or solver fails."""
-    pass
+    def __init__(self, message: str, code: str = "OPTIMIZATION_FAILED", status: int = -1):
+        super().__init__(message)
+        self.code = code
+        self.status = status
 
 
 def solve_energy_optimization(compiled: CompiledScenario) -> OptimizationSolution:
@@ -90,18 +93,34 @@ def solve_energy_optimization(compiled: CompiledScenario) -> OptimizationSolutio
     b_eq[eq_idx] = float(compiled.initial_energy)
     eq_idx += 1
 
-    # Solve using HiGHS
+    # Solve using HiGHS with explicit time limit
     res = linprog(
         c,
         A_eq=A_eq,
         b_eq=b_eq,
         bounds=bounds,
         method="highs",
-        options={"presolve": True},
+        options={"presolve": True, "time_limit": float(compiled.solver_timeout_seconds)},
     )
 
     if not res.success:
-        raise SolverError(f"LP Solver failed: {res.message} (status {res.status})")
+        if "time limit" in res.message.lower():
+            err_code = "OPTIMIZATION_TIMEOUT"
+        else:
+            status_code_map = {
+                1: "OPTIMIZATION_ITERATION_LIMIT",
+                2: "OPTIMIZATION_INFEASIBLE",
+                3: "OPTIMIZATION_UNBOUNDED",
+                4: "OPTIMIZATION_NUMERICAL_DIFFICULTY",
+                5: "OPTIMIZATION_TIMEOUT",
+            }
+            err_code = status_code_map.get(res.status, "OPTIMIZATION_FAILED")
+        raise SolverError(
+            f"LP Solver failed: {res.message} (status {res.status})",
+            code=err_code,
+            status=res.status,
+        )
+
 
     x = res.x
     grid = x[0:N]

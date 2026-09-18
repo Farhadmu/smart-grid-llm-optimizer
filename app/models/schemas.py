@@ -2,7 +2,7 @@
 
 import math
 from typing import Any, Dict, List, Literal, Optional, Union
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 def _check_finite_number(v: Any, field_name: str) -> float:
@@ -19,6 +19,7 @@ def _check_finite_number(v: Any, field_name: str) -> float:
 
 class HourInput(BaseModel):
     """Input specification for a single hour."""
+    model_config = ConfigDict(extra="forbid")
 
     hour: int = Field(..., description="Hour index from 0 through 23")
     demand_kwh: float = Field(..., description="Forecasted electrical demand in kWh")
@@ -45,6 +46,7 @@ class HourInput(BaseModel):
 
 class BatteryInput(BaseModel):
     """Battery parameter specifications."""
+    model_config = ConfigDict(extra="forbid")
 
     capacity_kwh: float = Field(..., description="Maximum battery storage capacity in kWh")
     initial_energy_kwh: float = Field(..., description="Battery energy at beginning of day in kWh")
@@ -92,6 +94,7 @@ class BatteryInput(BaseModel):
 
 class OptimizeEnergyRequest(BaseModel):
     """Top-level scenario optimization request."""
+    model_config = ConfigDict(extra="forbid")
 
     scenario_id: str = Field(..., description="Scenario identifier")
     operator_notes: List[str] = Field(
@@ -105,7 +108,8 @@ class OptimizeEnergyRequest(BaseModel):
     def validate_scenario_id(cls, v: str) -> str:
         if not v or not v.strip():
             raise ValueError("scenario_id must not be empty or whitespace only")
-        return v.strip()
+        # Preserve exact scenario_id without trimming to guarantee exact echo
+        return v
 
     @field_validator("operator_notes")
     @classmethod
@@ -151,30 +155,36 @@ BatteryAction = Literal["charge", "discharge", "idle"]
 
 
 class SolarReductionAdjustment(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     hours: List[int]
     factor: float
 
 
 class MinimumBatteryReserveAdjustment(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     hours: List[int]
     minimum_energy_kwh: float
 
 
 class NoChargeWindowAdjustment(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     hours: List[int]
 
 
 class NoDischargeWindowAdjustment(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     hours: List[int]
 
 
 class MaxGridWindowAdjustment(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     hours: List[int]
     max_grid_kwh: float
 
 
 class DirectiveInterpretationItem(BaseModel):
     """Structured interpretation for a single operator note."""
+    model_config = ConfigDict(extra="forbid")
 
     note_index: int = Field(..., description="Zero-based index of corresponding input note")
     applies: bool = Field(..., description="False only for no_op; true for all active directives")
@@ -187,6 +197,7 @@ class DirectiveInterpretationItem(BaseModel):
 
 class HourlyPlanItem(BaseModel):
     """Optimized operational plan for a single hour."""
+    model_config = ConfigDict(extra="forbid")
 
     hour: int = Field(..., description="Hour index (0-23)")
     grid_kwh: float = Field(..., description="Grid electricity imported in kWh")
@@ -200,6 +211,7 @@ class HourlyPlanItem(BaseModel):
 
 class OptimizeEnergyResponse(BaseModel):
     """Top-level successful optimization response matching organizer contract exactly."""
+    model_config = ConfigDict(extra="forbid")
 
     scenario_id: str
     directive_interpretation: List[DirectiveInterpretationItem]
@@ -212,12 +224,14 @@ class OptimizeEnergyResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     """Health check response."""
+    model_config = ConfigDict(extra="forbid")
 
     status: Literal["ok"] = "ok"
 
 
 class ErrorDetail(BaseModel):
     """Safe public error details."""
+    model_config = ConfigDict(extra="forbid")
 
     code: str
     message: str
@@ -225,5 +239,6 @@ class ErrorDetail(BaseModel):
 
 class ErrorEnvelope(BaseModel):
     """Standard controlled error envelope."""
+    model_config = ConfigDict(extra="forbid")
 
     error: ErrorDetail

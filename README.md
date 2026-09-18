@@ -156,7 +156,15 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 7.3 Configuration
+### 7.3 Configuration & Environments
+GridWise supports explicit environments via `APP_ENV`: `development`, `test`, and `production`.
+
+- In `APP_ENV=production`:
+  - `LLM_PROVIDER=fake` is strictly prohibited and refused at startup.
+  - Real credentials (`GEMINI_API_KEY` or `OPENAI_API_KEY`) must be non-empty and cannot contain placeholder substrings (`demo`, `test`, `placeholder`, `changeme`, `your_`).
+- In `APP_ENV=test`:
+  - Fast determinism with `LLM_PROVIDER=fake` is permitted.
+
 Copy `.env.example` to `.env` and set provider keys if using a live provider:
 ```bash
 cp .env.example .env
@@ -164,18 +172,21 @@ cp .env.example .env
 
 | Variable | Default | Description |
 |---|---|---|
+| `APP_ENV` | `development` | Environment: `development`, `test`, or `production` |
 | `HOST` | `0.0.0.0` | Host IP address to bind |
-| `PORT` | `8000` | Port to expose |
+| `PORT` | `8000` | Port to expose (dynamically used by Docker health check) |
 | `LLM_PROVIDER` | `gemini` | Provider: `gemini`, `openai`, or `fake` |
-| `GEMINI_API_KEY` | `""` | Google Gemini API key (when using gemini) |
+| `GEMINI_API_KEY` | `""` | Google Gemini API key (passed via `x-goog-api-key` header) |
 | `GEMINI_MODEL` | `gemini-2.5-flash` | Gemini model name |
 | `OPENAI_API_KEY` | `""` | OpenAI API key (when using openai) |
 | `OPENAI_BASE_URL`| `https://api.openai.com/v1` | OpenAI API base URL |
 | `OPENAI_MODEL` | `gpt-4o-mini` | OpenAI model name |
+| `OPENAI_STRICT_SCHEMA` | `true` | Enforce `strict: true` structured outputs |
 | `REQUEST_TIMEOUT_SECONDS` | `28.0` | Request timeout limit (judge hard limit 30s) |
 | `LLM_TIMEOUT_SECONDS` | `8.0` | LLM call timeout limit |
 | `LLM_MAX_RETRIES` | `1` | Max retry attempts for repairable errors |
-| `SOLVER_TIMEOUT_SECONDS` | `5.0` | Solver execution budget |
+| `SOLVER_TIMEOUT_SECONDS` | `5.0` | HiGHS solver execution budget (raises `OPTIMIZATION_TIMEOUT` if breached) |
+| `RUN_LIVE_LLM_TESTS` | `false` | Enable opt-in live LLM end-to-end integration tests |
 | `LOG_LEVEL` | `INFO` | Logging verbosity |
 
 ### 7.4 Start the Service
@@ -188,13 +199,19 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 ## 8. Verification & Testing
 
 ### 8.1 Run Complete Automated Test Suite
-Runs all 64 unit, integration, edge-case, and concurrency tests in `< 0.2s`:
+Runs all unit, integration, edge-case, concurrency, and contract tests in `< 0.3s`:
 ```bash
 python3 scripts/run_tests.py
 ```
 *(Also compatible with `pytest`)*
 
-### 8.2 Run All 10 Public Sample Cases
+### 8.2 Opt-in Live Provider Verification Test
+To run smoke tests directly against Google Gemini or OpenAI with real credentials:
+```bash
+APP_ENV=development LLM_PROVIDER=gemini GEMINI_API_KEY="your-real-key" RUN_LIVE_LLM_TESTS=1 python3 -m unittest tests/test_live_provider.py
+```
+
+### 8.3 Run All 10 Public Sample Cases
 Validates all 10 cases from `docs/BUP_CSE_FEST_2026_Preli_Public_Sample_Cases.json` against organizer ground truth, replaying every schedule and checking optimal cost within official tolerance:
 ```bash
 python3 scripts/run_public_samples.py
@@ -315,20 +332,25 @@ Response:
 ## 10. Docker Build & Deployment
 
 ### 10.1 Build Container Image
+Uses pinned dependencies from `requirements.lock` and creates a non-root `appuser`:
 ```bash
 docker build -t gridwise-service:latest .
 ```
 
 ### 10.2 Run Container
+Dynamic port binding via `PORT` environment variable:
 ```bash
 docker run -d --name gridwise-app \
-  -p 8000:8000 \
+  -p 8080:8080 \
+  -e PORT=8080 \
+  -e APP_ENV=production \
   -e LLM_PROVIDER=gemini \
   -e GEMINI_API_KEY="YOUR_API_KEY" \
   gridwise-service:latest
 ```
 
-### 10.3 Verify Health
+### 10.3 Verify Container Health
+The container healthcheck dynamically contacts `http://127.0.0.1:${PORT:-8000}/health`:
 ```bash
 docker inspect --format='{{json .State.Health.Status}}' gridwise-app
 # Output: "healthy"
@@ -349,10 +371,12 @@ We gratefully acknowledge the open-source libraries and algorithms powering Grid
 
 ## 12. Security & Known Limitations
 
-### Security
-- Zero secrets committed to the repository or baked into Docker layers.
-- Strict structured logging automatically redacts tokens, headers, and credentials.
-- Error handlers return safe machine codes (`400`, `422`, `500`) without leaking prompts, provider responses, or stack traces.
+### Security & Prompt Injection Defense
+- **Untrusted Input Encapsulation:** Operator notes are encapsulated inside `<untrusted_operator_note>` tags and treated purely as passive semantic text. The system prompt instructs the model to ignore any instructions inside notes that attempt to change formats, bypass validation, or override directives.
+- **Strict Schema Filtering:** Model outputs are strictly validated by deterministic Pydantic guardrails before touching any compiler or optimizer logic.
+- **Zero Secrets Committed:** API keys are injected purely via environment variables.
+- **Structured Redaction:** Logging masks authorization headers, query tokens, and raw credentials.
+- **Safe Machine Errors:** Controlled error envelope with unambiguous error codes (`400`, `422`, `500`, `504`) without stack trace leakage.
 
 ### Known Limitations
 - Single 24-hour horizon per request (multi-day rolling horizon is out of scope per problem statement).

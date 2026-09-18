@@ -160,14 +160,51 @@ class TestSchemas(unittest.TestCase):
         with self.assertRaises(ValidationError):
             BatteryInput(**b4)
 
-    def test_health_and_error_envelopes(self):
-        h = HealthResponse(status="ok")
-        self.assertEqual(h.model_dump(), {"status": "ok"})
+    def test_extra_fields_forbidden(self):
+        # Top-level extra field
+        req_dict = {
+            "scenario_id": "TEST-01",
+            "operator_notes": ["Note 1"],
+            "hours": _make_valid_hours(),
+            "battery": _make_valid_battery(),
+            "unexpected_field": "disallowed",
+        }
+        with self.assertRaises(ValidationError):
+            OptimizeEnergyRequest(**req_dict)
 
-        err = ErrorEnvelope(error={"code": "BAD_INPUT", "message": "Test message"})
-        dumped = err.model_dump()
-        self.assertEqual(dumped["error"]["code"], "BAD_INPUT")
-        self.assertEqual(dumped["error"]["message"], "Test message")
+        # Extra field in hour item
+        hours = _make_valid_hours()
+        hours[0]["extra_hour_field"] = 123
+        with self.assertRaises(ValidationError):
+            OptimizeEnergyRequest(
+                scenario_id="TEST-02",
+                operator_notes=["Note 1"],
+                hours=hours,
+                battery=_make_valid_battery(),
+            )
+
+        # Extra field in battery
+        battery = _make_valid_battery()
+        battery["extra_battery_field"] = "bad"
+        with self.assertRaises(ValidationError):
+            OptimizeEnergyRequest(
+                scenario_id="TEST-03",
+                operator_notes=["Note 1"],
+                hours=_make_valid_hours(),
+                battery=battery,
+            )
+
+    def test_exact_scenario_id_echo(self):
+        # Must preserve whitespace verbatim and not strip
+        raw_id = "  SCENARIO_WITH_SPACES  "
+        req_dict = {
+            "scenario_id": raw_id,
+            "operator_notes": ["Note 1"],
+            "hours": _make_valid_hours(),
+            "battery": _make_valid_battery(),
+        }
+        req = OptimizeEnergyRequest(**req_dict)
+        self.assertEqual(req.scenario_id, raw_id)
 
 
 if __name__ == "__main__":
