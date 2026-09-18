@@ -709,7 +709,9 @@ function setupEventListeners() {
     themeToggleBtn.addEventListener("click", toggleTheme);
   }
 
-  checkHealthBtn.addEventListener("click", checkHealth);
+  if (checkHealthBtn) {
+    checkHealthBtn.addEventListener("click", checkHealth);
+  }
 
   loadSampleBtn.addEventListener("click", () => {
     const idx = sampleSelect.value;
@@ -906,7 +908,7 @@ function setupEventListeners() {
   if (loginForm) {
     loginForm.addEventListener("submit", (e) => {
       e.preventDefault();
-      handleLogin(loginEmail.value, loginPassword.value, loginRole.value);
+      handleLogin(loginEmail.value, loginPassword.value);
     });
   }
 
@@ -914,8 +916,7 @@ function setupEventListeners() {
     quickJudgeLoginBtn.addEventListener("click", () => {
       if (loginEmail) loginEmail.value = "judge@bup.edu.bd";
       if (loginPassword) loginPassword.value = "gridwise2026";
-      if (loginRole) loginRole.value = "Lead Hackathon Judge (BUP CSE Fest 2026)";
-      handleLogin("judge@bup.edu.bd", "gridwise2026", "Lead Hackathon Judge (BUP CSE Fest 2026)");
+      handleLogin("judge@bup.edu.bd", "gridwise2026");
     });
   }
 

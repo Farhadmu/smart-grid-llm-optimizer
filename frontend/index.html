@@ -68,16 +68,7 @@
           />
         </div>
 
-        <div class="form-group">
-          <label for="loginRole" class="form-label">Active Role</label>
-          <select id="loginRole" class="select-control">
-            <option value="Lead Hackathon Judge (BUP CSE Fest 2026)" selected>Lead Hackathon Judge (BUP CSE Fest 2026)</option>
-            <option value="Campus Microgrid Operations Chief">Campus Microgrid Operations Chief</option>
-            <option value="Autonomous Dispatch Auditor">Autonomous Dispatch Auditor</option>
-          </select>
-        </div>
-
-        <div id="loginErrorMsg" class="alert-box alert-danger" style="display:none; font-size:0.75rem;"></div>
+        <div id="loginErrorMsg" class="alert-box alert-danger" style="display:none; font-size:0.7rem; margin-bottom:1rem;"></div>
 
         <div class="login-action-buttons">
           <button type="submit" id="submitLoginBtn" class="btn btn-primary btn-submit-action">
@@ -104,23 +95,10 @@
         <span class="brand-bolt">⚡</span>
         <span class="brand-name">GridWise</span>
       </div>
-      <span class="brand-badge desktop-only">Microgrid Ops</span>
     </div>
 
     <div class="header-controls">
-      <div class="control-input-group desktop-only">
-        <label for="apiBaseInput" class="form-label desktop-only" style="margin:0; font-size:0.7rem;">Endpoint:</label>
-        <input 
-          type="text" 
-          id="apiBaseInput" 
-          class="server-input" 
-          value="http://127.0.0.1:8000" 
-          aria-label="Backend API Endpoint URL" 
-        />
-        <button id="checkHealthBtn" class="btn btn-secondary btn-sm" aria-label="Verify Backend Health">
-          Ping
-        </button>
-      </div>
+      <input type="hidden" id="apiBaseInput" value="http://127.0.0.1:8000" />
 
       <button id="settingsToggleBtn" class="btn btn-secondary btn-sm" aria-label="Open settings modal" title="Configure LLM & Optimizer">
         <span aria-hidden="true">⚙️</span>
