@@ -56,7 +56,7 @@ class Settings(BaseModel):
         default_factory=lambda: os.getenv("LLM_PROVIDER", "gemini").lower()  # type: ignore
     )
     gemini_api_key: str = Field(default_factory=lambda: os.getenv("GEMINI_API_KEY", ""))
-    gemini_model: str = Field(default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-1.5-flash"))
+    gemini_model: str = Field(default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-2.5-flash"))
 
 
     openai_api_key: str = Field(default_factory=lambda: os.getenv("OPENAI_API_KEY", ""))
@@ -107,12 +107,17 @@ class Settings(BaseModel):
     @field_validator("gemini_model", mode="before")
     @classmethod
     def validate_gemini_model(cls, v: Any) -> str:
-        cleaned = str(v or "gemini-1.5-flash").strip()
+        cleaned = str(v or "gemini-2.5-flash").strip()
         if cleaned.startswith("models/"):
             cleaned = cleaned.removeprefix("models/")
-        if "2.5" in cleaned:
-            cleaned = cleaned.replace("2.5", "1.5")
-        return cleaned or "gemini-1.5-flash"
+        cleaned_lower = cleaned.lower().replace(" ", "-")
+        if cleaned_lower in ("flash-2.5", "2.5-flash", "gemini-flash-2.5", "gemini-2.5", "2.5"):
+            return "gemini-2.5-flash"
+        if cleaned_lower in ("flash-1.5", "1.5-flash", "gemini-flash-1.5", "gemini-1.5", "1.5"):
+            return "gemini-1.5-flash"
+        if cleaned_lower in ("flash-2.0", "2.0-flash", "gemini-flash-2.0", "gemini-2.0", "2.0"):
+            return "gemini-2.0-flash"
+        return cleaned or "gemini-2.5-flash"
 
     @field_validator("llm_max_retries")
     @classmethod

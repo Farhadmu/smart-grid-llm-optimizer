@@ -223,7 +223,7 @@ const exportAuditJsonBtn = document.getElementById("exportAuditJsonBtn");
 const DEFAULT_SETTINGS = {
   llm_provider: "gemini",
   gemini_key: "",
-  gemini_model: "gemini-1.5-flash",
+  gemini_model: "gemini-2.5-flash",
   openai_key: "",
   openai_model: "gpt-4o-mini",
   openai_base_url: "https://api.openai.com/v1",
@@ -238,9 +238,8 @@ function getStoredSettings() {
     const saved = localStorage.getItem("gridwise_config");
     if (saved) {
       const cfg = { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
-      if (cfg.gemini_model && cfg.gemini_model.includes("2.5")) {
-        cfg.gemini_model = "gemini-1.5-flash";
-        saveStoredSettings(cfg);
+      if (!cfg.gemini_model) {
+        cfg.gemini_model = "gemini-2.5-flash";
       }
       return cfg;
     }
@@ -1231,7 +1230,7 @@ function setupEventListeners() {
       const newCfg = {
         llm_provider: cfgLlmProvider ? cfgLlmProvider.value : "gemini",
         gemini_key: cfgGeminiKey ? cfgGeminiKey.value.trim() : "",
-        gemini_model: cfgGeminiModel ? cfgGeminiModel.value : "gemini-1.5-flash",
+        gemini_model: cfgGeminiModel ? cfgGeminiModel.value : "gemini-2.5-flash",
         openai_key: cfgOpenAiKey ? cfgOpenAiKey.value.trim() : "",
         openai_model: cfgOpenAiModel ? cfgOpenAiModel.value : "gpt-4o-mini",
         openai_base_url: cfgOpenAiBaseUrl ? cfgOpenAiBaseUrl.value.trim() : "https://api.openai.com/v1",

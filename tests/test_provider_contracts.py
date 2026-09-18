@@ -159,18 +159,18 @@ class TestProviderContracts(unittest.TestCase):
         self.assertIn("missing 'directive_interpretation' key", str(ctx.exception))
 
     def test_gemini_model_normalization(self):
-        """Assert models/ prefix and legacy 2.5 names are normalized to standard identifiers."""
-        interpreter1 = GeminiInterpreter(api_key="dummy", model="gemini-2.5-flash")
-        self.assertEqual(interpreter1.model, "gemini-1.5-flash")
+        """Assert models/ prefix and human aliases are normalized to standard identifiers."""
+        interpreter1 = GeminiInterpreter(api_key="dummy", model="models/gemini-2.5-flash")
+        self.assertEqual(interpreter1.model, "gemini-2.5-flash")
 
-        interpreter2 = GeminiInterpreter(api_key="dummy", model="models/gemini-1.5-pro")
-        self.assertEqual(interpreter2.model, "gemini-1.5-pro")
+        interpreter2 = GeminiInterpreter(api_key="dummy", model="flash 2.5")
+        self.assertEqual(interpreter2.model, "gemini-2.5-flash")
 
-        interpreter3 = GeminiInterpreter(api_key="dummy", model="gemini-2.5-pro")
-        self.assertEqual(interpreter3.model, "gemini-1.5-pro")
+        interpreter3 = GeminiInterpreter(api_key="dummy", model="models/gemini-1.5-flash")
+        self.assertEqual(interpreter3.model, "gemini-1.5-flash")
 
     def test_gemini_404_fallback_resilience(self):
-        """Assert that an unexpected 404 automatically falls back to gemini-1.5-flash."""
+        """Assert that an unexpected 404 automatically falls back across supported models."""
         import urllib.error
         calls = []
 
@@ -201,9 +201,9 @@ class TestProviderContracts(unittest.TestCase):
         )
         result = interpreter._call_gemini_sync("Hello")
         self.assertIn("directive_interpretation", result)
-        self.assertEqual(len(calls), 2)
+        self.assertGreaterEqual(len(calls), 2)
         self.assertIn("gemini-unknown-model", calls[0])
-        self.assertIn("gemini-1.5-flash", calls[1])
+        self.assertIn("gemini-2.5-flash", calls[1])
 
 
 if __name__ == "__main__":

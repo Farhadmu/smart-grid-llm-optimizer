@@ -16,12 +16,16 @@ def normalize_gemini_model(model_name: Optional[str]) -> str:
     cleaned = (model_name or "").strip()
     if cleaned.startswith("models/"):
         cleaned = cleaned.removeprefix("models/")
-    # Automatically map non-existent or misconfigured models like 'gemini-2.5-flash'
-    if "2.5" in cleaned:
-        cleaned = cleaned.replace("2.5", "1.5")
-    if not cleaned:
-        cleaned = "gemini-1.5-flash"
-    return cleaned
+    
+    cleaned_lower = cleaned.lower().replace(" ", "-")
+    if cleaned_lower in ("flash-2.5", "2.5-flash", "gemini-flash-2.5", "gemini-2.5", "2.5"):
+        return "gemini-2.5-flash"
+    if cleaned_lower in ("flash-1.5", "1.5-flash", "gemini-flash-1.5", "gemini-1.5", "1.5"):
+        return "gemini-1.5-flash"
+    if cleaned_lower in ("flash-2.0", "2.0-flash", "gemini-flash-2.0", "gemini-2.0", "2.0"):
+        return "gemini-2.0-flash"
+    
+    return cleaned or "gemini-2.5-flash"
 
 
 class GeminiInterpreter(LLMInterpreter):
@@ -30,7 +34,7 @@ class GeminiInterpreter(LLMInterpreter):
     def __init__(
         self,
         api_key: str,
-        model: str = "gemini-1.5-flash",
+        model: str = "gemini-2.5-flash",
         timeout_seconds: float = 8.0,
         transport: Optional[Callable[[urllib.request.Request, float], str]] = None,
     ):
@@ -69,8 +73,9 @@ class GeminiInterpreter(LLMInterpreter):
     def _call_gemini_sync(self, prompt: str) -> str:
         """Synchronous call using configured transport with resilient model fallback."""
         models_to_try = [self.model]
-        if self.model != "gemini-1.5-flash":
-            models_to_try.append("gemini-1.5-flash")
+        for candidate in ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]:
+            if candidate not in models_to_try:
+                models_to_try.append(candidate)
 
         last_error: Optional[Exception] = None
         for current_model in models_to_try:
