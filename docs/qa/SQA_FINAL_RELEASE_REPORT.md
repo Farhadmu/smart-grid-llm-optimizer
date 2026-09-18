@@ -18,7 +18,7 @@ This report certifies that the **GridWise Smart Campus Energy Optimizer** has co
 | Quality Metric | Required Target | SQA Result | Status |
 |---|---|---|---|
 | Contract Routes | `GET /health`, `POST /optimize-energy` | Exact schema, HTTP 200, zero auth requirement on API | **100% PASS** |
-| Unit & Integration Tests | Comprehensive coverage | 93 / 93 tests passing in 0.11s | **100% PASS** |
+| Unit & Integration Tests | Comprehensive coverage | 96 / 96 tests passing in 0.16s | **100% PASS** |
 | Public Benchmark Cases | 10 official organizer cases | 10 / 10 passed with 0.0000 BDT cost delta | **100% PASS** |
 | Mathematical Optimality | Linear Program (HiGHS) | Provably cost-optimal with zero grid export | **100% PASS** |
 | Replay Invariant Verification | 12 physical/directive checks | Independent chronological replay engine | **100% PASS** |
@@ -91,7 +91,7 @@ Judges at BUP CSE Fest include academic leaders and industry professionals who v
 
 ## 5. Final SQA Sign-off
 
-- **Automated Tests:** 93 passed, 0 failed, 1 skipped (opt-in live test).
+- **Automated Tests:** 96 passed, 0 failed, 1 skipped (opt-in live test).
 - **Public Samples:** 10/10 verified with 0.0000 delta.
 - **Security Audit:** Zero secrets committed, containerized with non-root security.
 - **Deployment Status:** Fully configured for Render and Docker fallback.

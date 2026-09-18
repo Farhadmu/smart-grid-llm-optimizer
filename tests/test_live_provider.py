@@ -7,7 +7,7 @@ They verify actual live end-to-end communication with the configured provider (G
 import asyncio
 import os
 import unittest
-from app.config import settings
+from app.config import get_settings
 from app.llm.factory import create_llm_interpreter
 
 
@@ -15,18 +15,19 @@ class TestLiveProvider(unittest.TestCase):
     """Opt-in live provider verification tests."""
 
     def setUp(self):
-        if not settings.run_live_llm_tests:
+        self.settings = get_settings()
+        if not self.settings.run_live_llm_tests:
             self.skipTest(
                 "Skipping live LLM test: RUN_LIVE_LLM_TESTS is not enabled."
             )
-        if settings.llm_provider not in ("gemini", "openai"):
+        if self.settings.llm_provider not in ("gemini", "openai"):
             self.skipTest(
-                f"Skipping live LLM test: provider '{settings.llm_provider}' is not a real API provider."
+                f"Skipping live LLM test: provider '{self.settings.llm_provider}' is not a real API provider."
             )
 
     def test_live_provider_interpretation(self):
         """Execute a live structured output request against the configured provider."""
-        client = create_llm_interpreter(settings)
+        client = create_llm_interpreter(self.settings)
         scenario_id = "LIVE-TEST-01"
         notes = ["The battery charging circuit will be disconnected between 2 PM and 4 PM."]
         directives = asyncio.run(
