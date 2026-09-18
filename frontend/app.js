@@ -118,6 +118,7 @@ const cfgSolverTimeout = document.getElementById("cfgSolverTimeout");
 const cfgRequestTimeout = document.getElementById("cfgRequestTimeout");
 const cfgCurrency = document.getElementById("cfgCurrency");
 const cfgThemeSelect = document.getElementById("cfgThemeSelect");
+const cfgServerEndpoint = document.getElementById("cfgServerEndpoint");
 const saveSettingsBtn = document.getElementById("saveSettingsBtn");
 const resetSettingsBtn = document.getElementById("resetSettingsBtn");
 const settingsStatusMsg = document.getElementById("settingsStatusMsg");
@@ -153,6 +154,7 @@ function openSettingsModal() {
   if (cfgRequestTimeout) cfgRequestTimeout.value = cfg.request_timeout;
   if (cfgCurrency) cfgCurrency.value = cfg.currency;
   if (cfgThemeSelect) cfgThemeSelect.value = document.documentElement.getAttribute("data-theme") || cfg.theme;
+  if (cfgServerEndpoint) cfgServerEndpoint.value = apiBaseInput ? apiBaseInput.value : "";
   if (settingsModal) settingsModal.style.display = "flex";
 }
 
@@ -772,6 +774,10 @@ function setupEventListeners() {
       };
       saveStoredSettings(newCfg);
       if (cfgThemeSelect) applyTheme(newCfg.theme, true);
+      if (cfgServerEndpoint && cfgServerEndpoint.value.trim() && apiBaseInput) {
+        apiBaseInput.value = cfgServerEndpoint.value.trim();
+        checkHealth();
+      }
       if (settingsStatusMsg) {
         settingsStatusMsg.textContent = "Saved!";
         settingsStatusMsg.style.display = "inline";

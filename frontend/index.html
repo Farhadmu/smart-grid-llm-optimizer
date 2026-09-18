@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- Disclaimer: All optimization schedules and LLM directives are executed on the backend HTTP service (POST /optimize-energy). -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#111827">
@@ -22,11 +23,11 @@
         <span class="brand-bolt">⚡</span>
         <span class="brand-name">GridWise</span>
       </div>
-      <span class="brand-badge">Microgrid Ops</span>
+      <span class="brand-badge desktop-only">Microgrid Ops</span>
     </div>
 
     <div class="header-controls">
-      <div class="control-input-group">
+      <div class="control-input-group desktop-only">
         <label for="apiBaseInput" class="form-label desktop-only" style="margin:0; font-size:0.7rem;">Endpoint:</label>
         <input 
           type="text" 
@@ -56,16 +57,6 @@
       </div>
     </div>
   </header>
-
-  <!-- Notice Banner -->
-  <aside class="notice-strip" aria-label="System Notice">
-    <div class="notice-content">
-      <strong>Disclaimer:</strong> All optimization schedules and LLM directives are executed on the backend HTTP service (<code>POST /optimize-energy</code>).
-    </div>
-    <div class="notice-tag desktop-only">
-      BUP CSE Fest 2026
-    </div>
-  </aside>
 
   <!-- Mobile Segmented Navigation Bar -->
   <nav class="mobile-segmented-tabs mobile-only" aria-label="View Switcher">
@@ -397,6 +388,12 @@
               <option value="dark">Dark Theme (Executive Slate)</option>
               <option value="light">Light Theme (Corporate Clean)</option>
             </select>
+          </div>
+
+          <div class="form-group">
+            <label for="cfgServerEndpoint" class="form-label">Backend Service Endpoint</label>
+            <input type="text" id="cfgServerEndpoint" class="form-control" placeholder="http://127.0.0.1:8000" />
+            <span class="field-help">Target API URL. Defaults to current host origin on cloud deployments.</span>
           </div>
         </div>
       </div>
