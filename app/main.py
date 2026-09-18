@@ -4,6 +4,7 @@ import asyncio
 import json
 import uuid
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any, Dict
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -50,8 +51,11 @@ app.add_middleware(
     expose_headers=["X-Correlation-ID"],
 )
 
-# Initialize the configured LLM interpreter
-interpreter = create_llm_interpreter(settings)
+from app.config import get_settings
+
+# Interpreter resolver honoring active environment and runtime settings
+def get_interpreter():
+    return create_llm_interpreter(get_settings())
 
 
 
@@ -154,14 +158,34 @@ async def optimize_energy_endpoint(
 
     try:
         # Wrap execution with request timeout budget
+        current_settings = get_settings()
+        
+        # Check optional client diagnostic header overrides
+        gemini_key_header = raw_request.headers.get("X-Gemini-API-Key")
+        provider_header = raw_request.headers.get("X-LLM-Provider")
+        model_header = raw_request.headers.get("X-Gemini-Model")
+
+        if gemini_key_header or provider_header or model_header:
+            overrides = {}
+            if gemini_key_header:
+                overrides["gemini_api_key"] = gemini_key_header
+            if provider_header and provider_header.lower() in ("gemini", "fake", "openai"):
+                overrides["llm_provider"] = provider_header.lower()
+            if model_header:
+                overrides["gemini_model"] = model_header
+            current_settings = current_settings.model_copy(update=overrides)
+            current_interpreter = create_llm_interpreter(current_settings)
+        else:
+            current_interpreter = get_interpreter()
+
         return await asyncio.wait_for(
             process_energy_optimization(
                 request=request_data,
-                interpreter=interpreter,
-                settings=settings,
+                interpreter=current_interpreter,
+                settings=current_settings,
                 correlation_id=corr_id,
             ),
-            timeout=settings.request_timeout_seconds,
+            timeout=current_settings.request_timeout_seconds,
         )
     except asyncio.TimeoutError:
         logger.error(
@@ -174,3 +198,11 @@ async def optimize_energy_endpoint(
             message=f"Request exceeded maximum processing budget of {settings.request_timeout_seconds}s",
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+# Serve frontend static dashboard assets if directory is present
+frontend_dir = Path(__file__).resolve().parent.parent / "frontend"
+if frontend_dir.is_dir():
+    from starlette.staticfiles import StaticFiles
+    app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
+

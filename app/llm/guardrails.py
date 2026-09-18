@@ -59,9 +59,12 @@ def validate_directive_interpretations(
             )
         missing_keys = ALLOWED_TOP_LEVEL_KEYS - item_keys
         if missing_keys:
-            raise GuardrailValidationError(
-                f"Item {expected_idx}: missing required field(s) {missing_keys}"
-            )
+            if missing_keys == {"structured_adjustment"} and item.get("directive_type") == "no_op":
+                item["structured_adjustment"] = None
+            else:
+                raise GuardrailValidationError(
+                    f"Item {expected_idx}: missing required field(s) {missing_keys}"
+                )
 
         # 2. note_index: must be an actual integer (not boolean)
         note_idx = item.get("note_index")

@@ -55,6 +55,9 @@ const optimizeBtn = document.getElementById("optimizeBtn");
 const errorAlert = document.getElementById("errorAlert");
 const errorTitle = document.getElementById("errorTitle");
 const errorMessage = document.getElementById("errorMessage");
+const errorActions = document.getElementById("errorActions");
+const quickSwitchOfflineBtn = document.getElementById("quickSwitchOfflineBtn");
+const errorOpenSettingsBtn = document.getElementById("errorOpenSettingsBtn");
 
 const kpiCost = document.getElementById("kpiCost");
 const kpiGrid = document.getElementById("kpiGrid");
@@ -68,6 +71,113 @@ const tabRequest = document.getElementById("tabRequest");
 const copyJsonBtn = document.getElementById("copyJsonBtn");
 const downloadJsonBtn = document.getElementById("downloadJsonBtn");
 const jsonInspector = document.getElementById("jsonInspector");
+
+// Mobile Segmented Tab References
+const tabNavScenario = document.getElementById("tabNavScenario");
+const tabNavResults = document.getElementById("tabNavResults");
+const scenarioView = document.getElementById("scenarioView");
+const resultsView = document.getElementById("resultsView");
+
+// Theme Toggle Management
+const themeToggleBtn = document.getElementById("themeToggleBtn");
+const themeIcon = document.getElementById("themeIcon");
+const themeLabel = document.getElementById("themeLabel");
+
+function initTheme() {
+  const savedTheme = localStorage.getItem("gridwise_theme");
+  const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const currentTheme = savedTheme || (prefersDark ? "dark" : "light");
+  applyTheme(currentTheme, false);
+}
+
+function applyTheme(theme, redrawCharts = true) {
+  document.documentElement.setAttribute("data-theme", theme);
+  localStorage.setItem("gridwise_theme", theme);
+  if (themeIcon) themeIcon.textContent = theme === "dark" ? "🌙" : "☀️";
+  if (themeLabel) themeLabel.textContent = theme === "dark" ? "Dark" : "Light";
+  if (redrawCharts && (energyChart || batteryChart) && lastResponse && lastRequest) {
+    renderCharts(lastResponse, lastRequest);
+  }
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute("data-theme") || "dark";
+  const target = current === "dark" ? "light" : "dark";
+  applyTheme(target, true);
+}
+
+// Settings Modal References & State
+const settingsModal = document.getElementById("settingsModal");
+const settingsToggleBtn = document.getElementById("settingsToggleBtn");
+const closeSettingsBtn = document.getElementById("closeSettingsBtn");
+const cfgLlmProvider = document.getElementById("cfgLlmProvider");
+const cfgGeminiKey = document.getElementById("cfgGeminiKey");
+const toggleKeyVisibilityBtn = document.getElementById("toggleKeyVisibilityBtn");
+const cfgGeminiModel = document.getElementById("cfgGeminiModel");
+const cfgSolverTimeout = document.getElementById("cfgSolverTimeout");
+const cfgRequestTimeout = document.getElementById("cfgRequestTimeout");
+const cfgCurrency = document.getElementById("cfgCurrency");
+const cfgThemeSelect = document.getElementById("cfgThemeSelect");
+const saveSettingsBtn = document.getElementById("saveSettingsBtn");
+const resetSettingsBtn = document.getElementById("resetSettingsBtn");
+const settingsStatusMsg = document.getElementById("settingsStatusMsg");
+
+const DEFAULT_SETTINGS = {
+  llm_provider: "gemini",
+  gemini_key: "",
+  gemini_model: "gemini-2.5-flash",
+  solver_timeout: 5.0,
+  request_timeout: 30.0,
+  currency: "BDT",
+  theme: "dark"
+};
+
+function getStoredSettings() {
+  try {
+    const saved = localStorage.getItem("gridwise_config");
+    if (saved) return { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
+  } catch (e) {}
+  return { ...DEFAULT_SETTINGS };
+}
+
+function saveStoredSettings(cfg) {
+  localStorage.setItem("gridwise_config", JSON.stringify(cfg));
+}
+
+function openSettingsModal() {
+  const cfg = getStoredSettings();
+  if (cfgLlmProvider) cfgLlmProvider.value = cfg.llm_provider;
+  if (cfgGeminiKey) cfgGeminiKey.value = cfg.gemini_key;
+  if (cfgGeminiModel) cfgGeminiModel.value = cfg.gemini_model;
+  if (cfgSolverTimeout) cfgSolverTimeout.value = cfg.solver_timeout;
+  if (cfgRequestTimeout) cfgRequestTimeout.value = cfg.request_timeout;
+  if (cfgCurrency) cfgCurrency.value = cfg.currency;
+  if (cfgThemeSelect) cfgThemeSelect.value = document.documentElement.getAttribute("data-theme") || cfg.theme;
+  if (settingsModal) settingsModal.style.display = "flex";
+}
+
+function closeSettingsModal() {
+  if (settingsModal) settingsModal.style.display = "none";
+}
+
+function switchMobileView(viewName) {
+  if (viewName === "scenarioView") {
+    if (tabNavScenario) tabNavScenario.classList.add("active");
+    if (tabNavResults) tabNavResults.classList.remove("active");
+    if (scenarioView) scenarioView.classList.add("view-active");
+    if (resultsView) resultsView.classList.remove("view-active");
+  } else {
+    if (tabNavResults) tabNavResults.classList.add("active");
+    if (tabNavScenario) tabNavScenario.classList.remove("active");
+    if (resultsView) resultsView.classList.add("view-active");
+    if (scenarioView) scenarioView.classList.remove("view-active");
+    // Ensure charts resize accurately when switching to results tab
+    requestAnimationFrame(() => {
+      if (energyChart) energyChart.resize();
+      if (batteryChart) batteryChart.resize();
+    });
+  }
+}
 
 // Helpers for Profiles
 function generateCampusProfile() {
@@ -111,6 +221,12 @@ function generateWorstCaseProfile() {
 
 // Lifecycle Init
 async function init() {
+  initTheme();
+  if (apiBaseInput && window.location.protocol.startsWith("http")) {
+    if (window.location.port !== "3000") {
+      apiBaseInput.value = window.location.origin;
+    }
+  }
   await loadPublicSamples();
   renderInputs();
   checkHealth();
@@ -137,7 +253,10 @@ async function loadPublicSamples() {
 }
 
 function getApiBase() {
-  let url = apiBaseInput.value.trim();
+  let url = apiBaseInput ? apiBaseInput.value.trim() : "";
+  if (!url && window.location.protocol.startsWith("http")) {
+    url = window.location.origin;
+  }
   if (url.endsWith("/")) url = url.slice(0, -1);
   return url;
 }
@@ -255,9 +374,21 @@ async function runOptimization() {
   optimizeBtn.innerHTML = `<span class="inline-spinner"></span> Computing...`;
 
   try {
+    const cfg = getStoredSettings();
+    const reqHeaders = { "Content-Type": "application/json" };
+    if (cfg.gemini_key && cfg.llm_provider === "gemini") {
+      reqHeaders["X-Gemini-API-Key"] = cfg.gemini_key;
+    }
+    if (cfg.llm_provider) {
+      reqHeaders["X-LLM-Provider"] = cfg.llm_provider;
+    }
+    if (cfg.gemini_model) {
+      reqHeaders["X-Gemini-Model"] = cfg.gemini_model;
+    }
+
     const res = await fetch(`${base}/optimize-energy`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: reqHeaders,
       body: JSON.stringify(payload)
     });
 
@@ -286,6 +417,9 @@ async function runOptimization() {
 
 // Results Presentation
 function renderResults(data) {
+  // Auto-switch to results view on mobile/webview
+  switchMobileView("resultsView");
+
   // KPIs
   kpiCost.textContent = Number(data.total_cost_bdt).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   kpiGrid.textContent = Number(data.total_grid_kwh).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -343,6 +477,10 @@ function renderCharts(response, request) {
   const batteryEnergy = response.hourly_plan.map(p => p.battery_energy_after_kwh);
   const tariffData = request.hours.map(h => h.tariff_bdt_per_kwh);
 
+  const compStyle = getComputedStyle(document.documentElement);
+  const gridColor = compStyle.getPropertyValue("--chart-grid").trim() || "rgba(31, 41, 61, 0.5)";
+  const tickColor = compStyle.getPropertyValue("--chart-tick").trim() || "#64748b";
+
   if (energyChart) energyChart.destroy();
   if (batteryChart) batteryChart.destroy();
 
@@ -385,8 +523,8 @@ function renderCharts(response, request) {
       responsive: true,
       maintainAspectRatio: false,
       scales: {
-        x: { grid: { color: "rgba(31, 41, 61, 0.5)" }, ticks: { color: "#64748b", font: { size: 10 } } },
-        y: { grid: { color: "rgba(31, 41, 61, 0.5)" }, ticks: { color: "#64748b", font: { size: 10 } }, title: { display: true, text: "kWh", color: "#64748b", font: { size: 10 } } }
+        x: { grid: { color: gridColor }, ticks: { color: tickColor, font: { size: 10 } } },
+        y: { grid: { color: gridColor }, ticks: { color: tickColor, font: { size: 10 } }, title: { display: true, text: "kWh", color: tickColor, font: { size: 10 } } }
       },
       plugins: { legend: { display: false } }
     }
@@ -402,7 +540,7 @@ function renderCharts(response, request) {
           label: "Battery Energy",
           data: batteryEnergy,
           borderColor: "#10b981",
-          backgroundColor: "rgba(16, 185, 129, 0.12)",
+          backgroundColor: "rgba(16, 185, 129, 0.15)",
           borderWidth: 2,
           fill: true,
           pointRadius: 2.5,
@@ -424,9 +562,9 @@ function renderCharts(response, request) {
       responsive: true,
       maintainAspectRatio: false,
       scales: {
-        x: { grid: { color: "rgba(31, 41, 61, 0.5)" }, ticks: { color: "#64748b", font: { size: 10 } } },
+        x: { grid: { color: gridColor }, ticks: { color: tickColor, font: { size: 10 } } },
         y: {
-          grid: { color: "rgba(31, 41, 61, 0.5)" },
+          grid: { color: gridColor },
           ticks: { color: "#10b981", font: { size: 10 } },
           title: { display: true, text: "Battery kWh", color: "#10b981", font: { size: 10 } }
         },
@@ -452,10 +590,21 @@ function showError(title, msg) {
   errorTitle.textContent = title;
   errorMessage.textContent = msg;
   errorAlert.style.display = "flex";
+  
+  const isLlmIssue = /MODEL_INTERPRETATION_ERROR|Gemini|API connection|nodename nor servname|timed out|TimeoutError|404|429|LLM/i.test(title + " " + msg);
+  if (errorActions) {
+    errorActions.style.display = isLlmIssue ? "flex" : "none";
+  }
+
+  switchMobileView("scenarioView");
+  errorAlert.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
 function hideError() {
   errorAlert.style.display = "none";
+  if (errorActions) {
+    errorActions.style.display = "none";
+  }
 }
 
 function escapeHtml(str) {
@@ -464,6 +613,17 @@ function escapeHtml(str) {
 
 // Event Bindings
 function setupEventListeners() {
+  if (tabNavScenario) {
+    tabNavScenario.addEventListener("click", () => switchMobileView("scenarioView"));
+  }
+  if (tabNavResults) {
+    tabNavResults.addEventListener("click", () => switchMobileView("resultsView"));
+  }
+
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener("click", toggleTheme);
+  }
+
   checkHealthBtn.addEventListener("click", checkHealth);
 
   loadSampleBtn.addEventListener("click", () => {
@@ -563,6 +723,107 @@ function setupEventListeners() {
     a.click();
     URL.revokeObjectURL(url);
   });
+
+  // Settings Modal Listeners
+  if (settingsToggleBtn) settingsToggleBtn.addEventListener("click", openSettingsModal);
+  if (closeSettingsBtn) closeSettingsBtn.addEventListener("click", closeSettingsModal);
+  if (settingsModal) {
+    settingsModal.addEventListener("click", (e) => {
+      if (e.target === settingsModal) closeSettingsModal();
+    });
+  }
+
+  if (toggleKeyVisibilityBtn && cfgGeminiKey) {
+    toggleKeyVisibilityBtn.addEventListener("click", () => {
+      const isPassword = cfgGeminiKey.type === "password";
+      cfgGeminiKey.type = isPassword ? "text" : "password";
+      toggleKeyVisibilityBtn.textContent = isPassword ? "Hide" : "Show";
+    });
+  }
+
+  // Modal tab switching
+  document.querySelectorAll(".modal-tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const tabId = btn.getAttribute("data-tab");
+      document.querySelectorAll(".modal-tab-btn").forEach(b => {
+        b.classList.remove("active");
+        b.setAttribute("aria-selected", "false");
+      });
+      document.querySelectorAll(".modal-tab-pane").forEach(pane => {
+        pane.style.display = "none";
+      });
+      btn.classList.add("active");
+      btn.setAttribute("aria-selected", "true");
+      const targetPane = document.getElementById(tabId);
+      if (targetPane) targetPane.style.display = "flex";
+    });
+  });
+
+  if (saveSettingsBtn) {
+    saveSettingsBtn.addEventListener("click", () => {
+      const newCfg = {
+        llm_provider: cfgLlmProvider ? cfgLlmProvider.value : "gemini",
+        gemini_key: cfgGeminiKey ? cfgGeminiKey.value.trim() : "",
+        gemini_model: cfgGeminiModel ? cfgGeminiModel.value : "gemini-2.5-flash",
+        solver_timeout: parseFloat(cfgSolverTimeout ? cfgSolverTimeout.value : 5.0) || 5.0,
+        request_timeout: parseFloat(cfgRequestTimeout ? cfgRequestTimeout.value : 30.0) || 30.0,
+        currency: cfgCurrency ? cfgCurrency.value : "BDT",
+        theme: cfgThemeSelect ? cfgThemeSelect.value : "dark"
+      };
+      saveStoredSettings(newCfg);
+      if (cfgThemeSelect) applyTheme(newCfg.theme, true);
+      if (settingsStatusMsg) {
+        settingsStatusMsg.textContent = "Saved!";
+        settingsStatusMsg.style.display = "inline";
+        setTimeout(() => { settingsStatusMsg.style.display = "none"; }, 2000);
+      }
+    });
+  }
+
+  if (resetSettingsBtn) {
+    resetSettingsBtn.addEventListener("click", () => {
+      localStorage.removeItem("gridwise_config");
+      openSettingsModal();
+      if (settingsStatusMsg) {
+        settingsStatusMsg.textContent = "Reset to defaults";
+        settingsStatusMsg.style.display = "inline";
+        setTimeout(() => {
+          settingsStatusMsg.style.display = "none";
+          settingsStatusMsg.textContent = "Saved!";
+        }, 2000);
+      }
+    });
+  }
+
+  // Quick actions from error alert
+  if (quickSwitchOfflineBtn) {
+    quickSwitchOfflineBtn.addEventListener("click", () => {
+      const cfg = getStoredSettings();
+      cfg.llm_provider = "fake";
+      saveStoredSettings(cfg);
+      if (cfgLlmProvider) cfgLlmProvider.value = "fake";
+      hideError();
+      runOptimization();
+    });
+  }
+
+  if (errorOpenSettingsBtn) {
+    errorOpenSettingsBtn.addEventListener("click", () => {
+      openSettingsModal();
+    });
+  }
+
+  // Auto-load reference scenario when selected from dropdown
+  if (sampleSelect) {
+    sampleSelect.addEventListener("change", () => {
+      const idx = sampleSelect.value;
+      if (idx !== "" && publicSamples[idx]) {
+        currentScenario = JSON.parse(JSON.stringify(publicSamples[idx].input));
+        renderInputs();
+        hideError();
+      }
+    });
+  }
 }
 
 window.addEventListener("DOMContentLoaded", init);

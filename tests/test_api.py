@@ -2,7 +2,12 @@
 
 import asyncio
 import json
+import os
 import unittest
+
+os.environ.setdefault("APP_ENV", "test")
+os.environ.setdefault("LLM_PROVIDER", "fake")
+
 from app.main import app
 from app.models.schemas import ErrorEnvelope
 

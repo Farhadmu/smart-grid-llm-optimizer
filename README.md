@@ -358,7 +358,40 @@ docker inspect --format='{{json .State.Health.Status}}' gridwise-app
 
 ---
 
-## 11. External Tools & Dependencies Credit
+## 11. Render Cloud Deployment
+
+GridWise is configured for seamless zero-downtime deployment to [Render](https://render.com). The unified FastAPI service serves both the production optimization API (`POST /optimize-energy`, `GET /health`) and the interactive operations dashboard at `/`.
+
+### Option A: Render Blueprint (Infrastructure-as-Code, Recommended)
+The repository includes a root [render.yaml](file:///Users/apple/Downloads/BUP_CSE_FEST_2026_Participant_Docs/render.yaml) specification:
+1. Log in to your Render dashboard and click **New** $\rightarrow$ **Blueprint**.
+2. Connect your GitHub repository. Render automatically reads `render.yaml`.
+3. When prompted, enter your `GEMINI_API_KEY` (kept private in Render's encrypted environment store).
+4. Click **Apply**. Render will install `requirements.lock`, verify `/health`, and deploy.
+
+### Option B: Manual Web Service Setup
+1. In Render, select **New Web Service** and link your GitHub repository.
+2. Configure the following settings:
+   - **Environment:** Python
+   - **Region:** Oregon (or closest to your users)
+   - **Build Command:** `pip install -r requirements.lock`
+   - **Start Command:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+   - **Health Check Path:** `/health`
+3. Add Environment Variables:
+   - `APP_ENV`: `production`
+   - `LLM_PROVIDER`: `gemini`
+   - `GEMINI_MODEL`: `gemini-2.5-flash`
+   - `GEMINI_API_KEY`: `<Your Gemini API Key>`
+   - `REQUEST_TIMEOUT_SECONDS`: `30.0`
+   - `LLM_TIMEOUT_SECONDS`: `20.0`
+   - `SOLVER_TIMEOUT_SECONDS`: `5.0`
+4. Click **Deploy Web Service**.
+
+Once deployed, opening your Render service URL (e.g. `https://gridwise-optimizer.onrender.com/`) loads the interactive web dashboard, and API clients can POST directly to `https://gridwise-optimizer.onrender.com/optimize-energy`.
+
+---
+
+## 12. External Tools & Dependencies Credit
 
 We gratefully acknowledge the open-source libraries and algorithms powering GridWise:
 - **FastAPI** by Sebastián Ramírez (Starlette & Pydantic)
@@ -369,7 +402,7 @@ We gratefully acknowledge the open-source libraries and algorithms powering Grid
 
 ---
 
-## 12. Security & Known Limitations
+## 13. Security & Known Limitations
 
 ### Security & Prompt Injection Defense
 - **Untrusted Input Encapsulation:** Operator notes are encapsulated inside `<untrusted_operator_note>` tags and treated purely as passive semantic text. The system prompt instructs the model to ignore any instructions inside notes that attempt to change formats, bypass validation, or override directives.

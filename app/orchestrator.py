@@ -84,9 +84,10 @@ async def process_energy_optimization(
                 last_error_feedback = f"Validation failed: {str(e)}"
                 continue
             else:
+                detail_msg = f": {str(e)}" if str(e) else ""
                 raise OrchestrationError(
                     code="MODEL_INTERPRETATION_ERROR",
-                    message="Failed to obtain valid directive interpretations from LLM",
+                    message=f"Failed to obtain valid directive interpretations from LLM{detail_msg}",
                     status_code=500,
                 )
 

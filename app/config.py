@@ -1,8 +1,29 @@
 """Configuration settings and validation for GridWise service."""
 
 import os
+from pathlib import Path
 from typing import Literal
 from pydantic import BaseModel, Field, field_validator, model_validator
+
+
+def _load_dotenv_if_present() -> None:
+    """Safely populate os.environ from .env if present without overwriting set vars."""
+    env_file = Path(__file__).resolve().parent.parent / ".env"
+    if env_file.is_file():
+        try:
+            for raw_line in env_file.read_text(encoding="utf-8").splitlines():
+                line = raw_line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    k = k.strip()
+                    v = v.strip().strip("'\"")
+                    if k and k not in os.environ:
+                        os.environ[k] = v
+        except Exception:
+            pass
+
+
+_load_dotenv_if_present()
 
 
 class ConfigurationError(ValueError):
@@ -35,7 +56,7 @@ class Settings(BaseModel):
         default_factory=lambda: os.getenv("LLM_PROVIDER", "gemini").lower()  # type: ignore
     )
     gemini_api_key: str = Field(default_factory=lambda: os.getenv("GEMINI_API_KEY", ""))
-    gemini_model: str = Field(default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-1.5-flash"))
+    gemini_model: str = Field(default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-2.5-flash"))
 
 
     openai_api_key: str = Field(default_factory=lambda: os.getenv("OPENAI_API_KEY", ""))
@@ -49,10 +70,10 @@ class Settings(BaseModel):
 
     # Timeouts & budgets (seconds)
     request_timeout_seconds: float = Field(
-        default_factory=lambda: float(os.getenv("REQUEST_TIMEOUT_SECONDS", "28.0"))
+        default_factory=lambda: float(os.getenv("REQUEST_TIMEOUT_SECONDS", "30.0"))
     )
     llm_timeout_seconds: float = Field(
-        default_factory=lambda: float(os.getenv("LLM_TIMEOUT_SECONDS", "8.0"))
+        default_factory=lambda: float(os.getenv("LLM_TIMEOUT_SECONDS", "20.0"))
     )
     llm_max_retries: int = Field(
         default_factory=lambda: int(os.getenv("LLM_MAX_RETRIES", "1"))

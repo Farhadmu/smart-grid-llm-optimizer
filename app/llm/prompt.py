@@ -81,7 +81,7 @@ GEMINI_RESPONSE_SCHEMA: Dict[str, Any] = {
                     },
                     "explanation": {"type": "STRING"},
                 },
-                "required": ["note_index", "applies", "directive_type", "explanation"],
+                "required": ["note_index", "applies", "directive_type", "structured_adjustment", "explanation"],
             },
         }
     },
