@@ -78,6 +78,86 @@ const tabNavResults = document.getElementById("tabNavResults");
 const scenarioView = document.getElementById("scenarioView");
 const resultsView = document.getElementById("resultsView");
 
+// Authentication & Portal DOM References
+const loginView = document.getElementById("loginView");
+const loginForm = document.getElementById("loginForm");
+const loginEmail = document.getElementById("loginEmail");
+const loginPassword = document.getElementById("loginPassword");
+const loginRole = document.getElementById("loginRole");
+const toggleLoginPasswordBtn = document.getElementById("toggleLoginPasswordBtn");
+const loginErrorMsg = document.getElementById("loginErrorMsg");
+const quickJudgeLoginBtn = document.getElementById("quickJudgeLoginBtn");
+const appHeader = document.getElementById("appHeader");
+const mobileNavTabs = document.getElementById("mobileNavTabs");
+const mainContent = document.getElementById("mainContent");
+const userProfileBadge = document.getElementById("userProfileBadge");
+const userRoleDisplay = document.getElementById("userRoleDisplay");
+const logoutBtn = document.getElementById("logoutBtn");
+
+function getAuthUser() {
+  try {
+    const session = sessionStorage.getItem("gridwise_auth_user") || localStorage.getItem("gridwise_auth_user");
+    if (session) return JSON.parse(session);
+  } catch (e) {}
+  return null;
+}
+
+function setAuthUser(user) {
+  try {
+    sessionStorage.setItem("gridwise_auth_user", JSON.stringify(user));
+  } catch (e) {}
+}
+
+function clearAuthUser() {
+  try {
+    sessionStorage.removeItem("gridwise_auth_user");
+    localStorage.removeItem("gridwise_auth_user");
+  } catch (e) {}
+}
+
+function applyAuthState() {
+  const user = getAuthUser();
+  if (user) {
+    if (loginView) loginView.style.display = "none";
+    if (appHeader) appHeader.style.display = "flex";
+    if (mobileNavTabs) mobileNavTabs.style.display = "";
+    if (mainContent) mainContent.style.display = "";
+    if (userProfileBadge) userProfileBadge.style.display = "flex";
+    if (userRoleDisplay) userRoleDisplay.textContent = user.roleShort || "Judge";
+  } else {
+    if (loginView) loginView.style.display = "flex";
+    if (appHeader) appHeader.style.display = "none";
+    if (mobileNavTabs) mobileNavTabs.style.display = "none";
+    if (mainContent) mainContent.style.display = "none";
+    if (userProfileBadge) userProfileBadge.style.display = "none";
+  }
+}
+
+function handleLogin(email, password, role) {
+  if (!email || !password) {
+    if (loginErrorMsg) {
+      loginErrorMsg.textContent = "Please enter both operator email and passcode.";
+      loginErrorMsg.style.display = "block";
+    }
+    return false;
+  }
+
+  const roleText = role || "Lead Hackathon Judge";
+  const shortRole = roleText.includes("Judge") ? "Judge" : roleText.includes("Chief") ? "Chief" : "Auditor";
+  const userObj = {
+    email: email.trim(),
+    role: roleText,
+    roleShort: shortRole,
+    loginTime: new Date().toISOString()
+  };
+
+  setAuthUser(userObj);
+  if (loginErrorMsg) loginErrorMsg.style.display = "none";
+  applyAuthState();
+  checkHealth();
+  return true;
+}
+
 // Theme Toggle Management
 const themeToggleBtn = document.getElementById("themeToggleBtn");
 const themeIcon = document.getElementById("themeIcon");
@@ -224,6 +304,7 @@ function generateWorstCaseProfile() {
 // Lifecycle Init
 async function init() {
   initTheme();
+  applyAuthState();
   if (apiBaseInput && window.location.protocol.startsWith("http")) {
     if (window.location.port !== "3000") {
       apiBaseInput.value = window.location.origin;
@@ -231,7 +312,9 @@ async function init() {
   }
   await loadPublicSamples();
   renderInputs();
-  checkHealth();
+  if (getAuthUser()) {
+    checkHealth();
+  }
   setupEventListeners();
 }
 
@@ -816,6 +899,38 @@ function setupEventListeners() {
   if (errorOpenSettingsBtn) {
     errorOpenSettingsBtn.addEventListener("click", () => {
       openSettingsModal();
+    });
+  }
+
+  // Authentication Event Bindings
+  if (loginForm) {
+    loginForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      handleLogin(loginEmail.value, loginPassword.value, loginRole.value);
+    });
+  }
+
+  if (quickJudgeLoginBtn) {
+    quickJudgeLoginBtn.addEventListener("click", () => {
+      if (loginEmail) loginEmail.value = "judge@bup.edu.bd";
+      if (loginPassword) loginPassword.value = "gridwise2026";
+      if (loginRole) loginRole.value = "Lead Hackathon Judge (BUP CSE Fest 2026)";
+      handleLogin("judge@bup.edu.bd", "gridwise2026", "Lead Hackathon Judge (BUP CSE Fest 2026)");
+    });
+  }
+
+  if (toggleLoginPasswordBtn && loginPassword) {
+    toggleLoginPasswordBtn.addEventListener("click", () => {
+      const isPass = loginPassword.type === "password";
+      loginPassword.type = isPass ? "text" : "password";
+      toggleLoginPasswordBtn.textContent = isPass ? "Hide" : "Show";
+    });
+  }
+
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", () => {
+      clearAuthUser();
+      applyAuthState();
     });
   }
 

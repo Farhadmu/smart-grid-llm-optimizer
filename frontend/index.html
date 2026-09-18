@@ -14,10 +14,91 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
+  <!-- Login Screen Overlay / Authentication Gate -->
+  <section id="loginView" class="login-view-wrap" style="display:none;" aria-label="System Authentication">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="brand-logo" style="justify-content:center; margin-bottom:0.35rem;">
+          <span class="brand-bolt">⚡</span>
+          <span class="brand-name">GridWise</span>
+        </div>
+        <h1 class="login-title">Operations Console</h1>
+        <p class="login-subtitle">LLM-Assisted Campus Energy Optimizer · BUP CSE Fest 2026</p>
+      </div>
+
+      <!-- Judge Auto-Login Guidance Banner -->
+      <div class="judge-access-callout" role="region" aria-label="Evaluation Credentials">
+        <div class="judge-access-badge">
+          <span>⚖️ HACKATHON EVALUATION ACCESS</span>
+        </div>
+        <p class="judge-access-text">
+          Input fields are <strong>pre-filled with dummy evaluation credentials</strong> for fast judging verification.
+        </p>
+        <div class="credentials-snippet">
+          <div class="cred-chip"><span>User:</span> <code>judge@bup.edu.bd</code></div>
+          <div class="cred-chip"><span>Pass:</span> <code>gridwise2026</code></div>
+        </div>
+      </div>
+
+      <form id="loginForm" class="login-form" novalidate>
+        <div class="form-group">
+          <label for="loginEmail" class="form-label">Operator Email / ID</label>
+          <input 
+            type="email" 
+            id="loginEmail" 
+            class="form-control" 
+            value="judge@bup.edu.bd" 
+            required 
+            autocomplete="username"
+          />
+        </div>
+
+        <div class="form-group">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label for="loginPassword" class="form-label">Access Passcode</label>
+            <button type="button" id="toggleLoginPasswordBtn" class="btn-text btn-sm">Show</button>
+          </div>
+          <input 
+            type="password" 
+            id="loginPassword" 
+            class="form-control" 
+            value="gridwise2026" 
+            required 
+            autocomplete="current-password"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="loginRole" class="form-label">Active Role</label>
+          <select id="loginRole" class="select-control">
+            <option value="Lead Hackathon Judge (BUP CSE Fest 2026)" selected>Lead Hackathon Judge (BUP CSE Fest 2026)</option>
+            <option value="Campus Microgrid Operations Chief">Campus Microgrid Operations Chief</option>
+            <option value="Autonomous Dispatch Auditor">Autonomous Dispatch Auditor</option>
+          </select>
+        </div>
+
+        <div id="loginErrorMsg" class="alert-box alert-danger" style="display:none; font-size:0.75rem;"></div>
+
+        <div class="login-action-buttons">
+          <button type="submit" id="submitLoginBtn" class="btn btn-primary btn-submit-action">
+            <span>🚀 Sign In to Dispatch Console</span>
+          </button>
+          <button type="button" id="quickJudgeLoginBtn" class="btn btn-secondary" style="width:100%; justify-content:center; font-size:0.8rem;">
+            <span>⚡ Instant 1-Click Judge Sign In</span>
+          </button>
+        </div>
+      </form>
+
+      <div class="login-footer">
+        <span>🔒 Secure Operator Portal · Zero Cloud Leakage · Local Verification</span>
+      </div>
+    </div>
+  </section>
+
   <a href="#mainContent" class="skip-to-content">Skip to main content</a>
 
   <!-- Header Navigation / Mobile App Bar -->
-  <header role="banner">
+  <header id="appHeader" role="banner">
     <div class="brand-section">
       <div class="brand-logo" aria-label="GridWise Platform">
         <span class="brand-bolt">⚡</span>
@@ -51,6 +132,15 @@
         <span id="themeLabel" class="desktop-only" style="font-size:0.75rem;">Dark</span>
       </button>
 
+      <!-- Authenticated User Profile & Sign Out -->
+      <div id="userProfileBadge" class="user-profile-badge" style="display:none;">
+        <span class="user-avatar" title="Logged in user">👤</span>
+        <span id="userRoleDisplay" class="desktop-only user-role-text">Judge</span>
+        <button id="logoutBtn" class="btn-text btn-sm" title="Sign out to return to login page" aria-label="Sign out">
+          Sign Out
+        </button>
+      </div>
+
       <div class="status-indicator" role="status" aria-live="polite">
         <span id="statusDot" class="status-dot checking" aria-hidden="true"></span>
         <span id="statusText">Checking...</span>
@@ -59,7 +149,7 @@
   </header>
 
   <!-- Mobile Segmented Navigation Bar -->
-  <nav class="mobile-segmented-tabs mobile-only" aria-label="View Switcher">
+  <nav id="mobileNavTabs" class="mobile-segmented-tabs mobile-only" aria-label="View Switcher">
     <button id="tabNavScenario" class="mobile-tab-btn active" data-view="scenarioView">
       <span>1. Scenario Setup</span>
     </button>
